@@ -36,7 +36,7 @@ class DimCuenta(models.Model):
     zona = models.CharField(max_length=100, blank=True, default="")
     industria = models.CharField(max_length=100, blank=True, default="")
     canal_adquisicion = models.CharField(max_length=100, blank=True, default="")
-    plan_inicial = models.ForeignKey(DimPlan, on_delete=models.PROTECT)
+    #plan_inicial = models.ForeignKey(DimPlan, on_delete=models.PROTECT)
     fecha_registro_inconsistente = models.BooleanField(default=False)
 
     class Meta:
@@ -96,6 +96,7 @@ class EjecucionETL(models.Model):
     filas_sin_cambio = models.IntegerField(default=0)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="EN_CURSO")
     resumen_privacidad = models.JSONField(default=dict, blank=True)
+    filas_por_tabla = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = "ejecucion_etl"
@@ -139,6 +140,7 @@ class BitacoraCambios(models.Model):
     justificacion = models.TextField(blank=True, default="")
     responsable = models.CharField(max_length=50, blank=True, default="")
     revisor = models.CharField(max_length=50, blank=True, default="")
+    detalle_cambios = models.JSONField(null=True, blank=True)
 
     class Meta:
         db_table = "bitacora_cambios"

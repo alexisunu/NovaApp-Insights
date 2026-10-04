@@ -51,3 +51,16 @@ media/
 # OS
 .DS_Store
 Thumbs.db
+
+# ==========================================
+# Datos del proyecto y privacidad (NovaApp)
+# ==========================================
+*.xlsx
+*.xls
+*.csv
+NovaApp.xlsx
+na_fact_uso.csv
+
+# Reportes y diagnósticos temporales
+reporte_*.txt
+*reporte_prueba*.txt

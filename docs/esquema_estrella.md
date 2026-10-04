@@ -6,7 +6,7 @@
 
 ```mermaid
 erDiagram
-    DIM_PLAN ||--o{ DIM_CUENTA : "plan_inicial"
+    
     DIM_PLAN ||--o{ FACT_SUSCRIPCIONES : "plan"
     DIM_CUENTA ||--o{ FACT_SUSCRIPCIONES : "cuenta"
     DIM_TIEMPO ||--o{ FACT_SUSCRIPCIONES : "fecha"
@@ -14,7 +14,7 @@ erDiagram
     DIM_TIEMPO ||--o{ FACT_USO : "fecha"
 
     DIM_PLAN {
-        int plan_id PK
+        
         string nombre_plan
         decimal precio_mensual
         int limite_usuarios
