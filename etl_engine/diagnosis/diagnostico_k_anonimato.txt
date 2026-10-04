@@ -1,0 +1,53 @@
+=== DIAGNÓSTICO DE K-ANONIMATO ===
+
+a) Valores distintos y conteo por cuasi-identificador base:
+
+- pais (8 valores distintos):
+  uruguay: 653
+  espana: 641
+  colombia: 638
+  chile: 629
+  argentina: 625
+  mexico: 612
+  ecuador: 607
+  peru: 595
+
+- industria (7 valores distintos):
+  educacion: 736
+  tecnologia: 723
+  gobierno: 717
+  finanzas: 715
+  salud: 708
+  retail: 707
+  manufactura: 694
+
+- canal_adquisicion (6 valores distintos):
+  alianza: 865
+  anuncio pago: 848
+  redes sociales: 842
+  referido: 831
+  busqueda organica: 818
+  evento: 796
+
+- plan_inicial_id (5 valores distintos):
+  1: 2060
+  2: 1192
+  3: 948
+  4: 515
+  5: 285
+
+b) Con los 4 cuasi-identificadores base:
+Combinaciones distintas: 1421
+K mínimo: 1
+Distribución de grupos: {'k=1': np.int64(324), 'k=2': np.int64(292), 'k=3-4': np.int64(386), 'k=5-9': np.int64(397), 'k=10+': np.int64(22)}
+Cuentas con k=1: 324
+% de cuentas en grupos < 5: 44.64%
+
+c) Pasos de generalización cumulativos:
+Paso 1 (zona) | K min: 1 | Cuentas k=1: 96 | % en < 5: 17.36%
+Paso 2 (industria/canal < 100 -> otros) | K min: 1 | Cuentas k=1: 96 | % en < 5: 17.36%
+Paso 3 (plan -> tipo) | K min: 1 | Cuentas k=1: 1 | % en < 5: 1.70%
+Paso 4 (sin plan) | K min: 5 | Cuentas k=1: 0 | % en < 5: 0.00%
+
+d) Detalle del mejor resultado (Paso 4):
+Cuentas en grupos < 5: 0

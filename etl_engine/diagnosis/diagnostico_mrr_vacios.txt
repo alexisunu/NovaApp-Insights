@@ -1,0 +1,139 @@
+DIAGNÓSTICO DE MRR, VACÍOS Y CHURN (solo lectura)
+fact_suscripciones deduplicada por sub_id: 73942 filas (420 duplicados descartados en memoria)
+Planes en dim_plan: ['Free', 'Starter', 'Pro', 'Business', 'Enterprise'] | plan(es) detectado(s) como Free: ['Free']
+
+==============================================================================
+(a) mrr negativo
+    Qué mide: cuántos mrr < 0 y cuántos coinciden en valor absoluto con el precio del plan.
+------------------------------------------------------------------------------
+Total mrr < 0: 124
+Con |mrr| == precio_mensual de su plan: 124
+Con |mrr| distinto del precio: 0
+Desglose por plan:
+             total  coincide_precio
+nombre_plan                        
+Business        34               34
+Enterprise      13               13
+Pro             30               30
+Starter         47               47
+
+==============================================================================
+(b) mrr == 99999
+    Qué mide: cuántas filas tienen el valor centinela 99999 y en qué planes.
+------------------------------------------------------------------------------
+Total mrr == 99999: 260
+Desglose por plan:
+nombre_plan
+Business      30
+Enterprise    31
+Free          93
+Pro           47
+Starter       59
+
+==============================================================================
+(c) Filas normales de planes de pago
+    Qué mide: mrr > 0, distinto de 99999 y plan no Free: cumplimiento del precio de catálogo.
+------------------------------------------------------------------------------
+Filas normales: 51000
+Cumplen mrr == precio_mensual: 51000 (100.00%)
+Los 10 valores de mrr más frecuentes por plan:
+  Plan Business (precio catálogo: 159000):
+    mrr=159000: 9669
+  Plan Enterprise (precio catálogo: 249000):
+    mrr=249000: 7138
+  Plan Pro (precio catálogo: 89000):
+    mrr=89000: 15037
+  Plan Starter (precio catálogo: 29000):
+    mrr=29000: 19156
+Filas que NO cumplen: 0
+
+==============================================================================
+(d) mrr == 0 y mrr nulo por plan
+    Qué mide: filas con mrr cero o vacío, separando Free de planes de pago.
+------------------------------------------------------------------------------
+                   mrr_cero  mrr_nulo  filas
+_free nombre_plan                           
+Pago  Business            0         0   9733
+      Enterprise          0         0   7182
+      Pro                 0         0  15114
+      Starter             0         0  19262
+Free  Free            22558         0  22651
+Total planes de pago -> mrr==0: 0, mrr nulo: 0
+
+==============================================================================
+(e) Plan Free
+    Qué mide: dentro de Free, cuántas filas tienen mrr 0 y cuántas mrr nulo.
+------------------------------------------------------------------------------
+Filas Free: 22651
+mrr == 0: 22558
+mrr nulo: 0
+mrr con otro valor: 93
+
+==============================================================================
+(f) Nulos por columna en las cinco tablas
+    Qué mide: conteo y porcentaje de valores nulos por columna, de mayor a menor (solo conteos).
+------------------------------------------------------------------------------
+-- fact_suscripciones (74362 filas) --
+   (sobre la tabla cruda, sin deduplicar)
+                  nulos  porcentaje
+usuarios_activos    543        0.73
+cuenta_id             0        0.00
+sub_id                0        0.00
+fecha_id              0        0.00
+plan_id               0        0.00
+mrr                   0        0.00
+churn                 0        0.00
+-- fact_uso (252600 filas) --
+              nulos  porcentaje
+duracion_min   2124        0.84
+uso_id            0        0.00
+cuenta_id         0        0.00
+fecha_id          0        0.00
+feature           0        0.00
+-- dim_cuenta (5000 filas) --
+                   nulos  porcentaje
+cuenta_id              0         0.0
+nombre_cuenta          0         0.0
+nit                    0         0.0
+contacto_admin         0         0.0
+email_admin            0         0.0
+pais                   0         0.0
+industria              0         0.0
+canal_adquisicion      0         0.0
+fecha_registro         0         0.0
+plan_inicial_id        0         0.0
+-- dim_plan (5 filas) --
+                 nulos  porcentaje
+plan_id              0         0.0
+nombre_plan          0         0.0
+precio_mensual       0         0.0
+limite_usuarios      0         0.0
+-- dim_tiempo (1461 filas) --
+                  nulos  porcentaje
+fecha_id              0         0.0
+fecha                 0         0.0
+anio                  0         0.0
+mes                   0         0.0
+nombre_mes            0         0.0
+mes_orden             0         0.0
+trimestre             0         0.0
+dia                   0         0.0
+dia_semana            0         0.0
+dia_semana_orden      0         0.0
+es_finde              0         0.0
+
+==============================================================================
+(g) Valores de churn y cruce con plan
+    Qué mide: valores distintos de churn con su conteo y su distribución por plan.
+------------------------------------------------------------------------------
+churn
+0    70534
+1     3408
+Cruce churn vs plan (filas):
+churn            0    1
+nombre_plan            
+Business      9230  503
+Enterprise    6784  398
+Free         21743  908
+Pro          14435  679
+Starter      18342  920

@@ -1,0 +1,54 @@
+DIAGNÓSTICO DE FECHA_REGISTRO (solo lectura)
+dim_cuenta: 5000 filas | fact_suscripciones (cruda): 74362 filas
+fact_suscripciones deduplicada por sub_id: 73942 filas (420 duplicados descartados en memoria)
+Tipo de fecha_registro: datetime64[ns] | Tipo de fecha_id: int64
+
+==============================================================================
+(a) Rango de fecha_registro y nulos
+    Qué mide: fecha mínima/máxima de alta y cuentas con fecha nula o no interpretable.
+------------------------------------------------------------------------------
+Fecha mínima: 2022-09-18
+Fecha máxima: 2026-09-16
+Cuentas con fecha_registro nula: 0
+Cuentas con fecha_registro no interpretable (texto/valor inválido): 0
+
+==============================================================================
+(b) Fuera del rango de dim_tiempo (2022-2025)
+    Qué mide: cuentas registradas después del 2025-12-31 o antes del 2022-01-01.
+------------------------------------------------------------------------------
+fecha_registro > 2025-12-31: 926
+fecha_registro < 2022-01-01: 0
+
+==============================================================================
+(c) Cuentas por año de registro
+    Qué mide: distribución anual de las altas de cuentas.
+------------------------------------------------------------------------------
+2022: 342
+2023: 1193
+2024: 1226
+2025: 1313
+2026: 926
+
+==============================================================================
+(d) Registro posterior a la primera suscripción
+    Qué mide: cuentas cuya fecha_registro es posterior a su primera suscripción (incoherencia temporal).
+------------------------------------------------------------------------------
+Cuentas con al menos una suscripción: 5000
+Cuentas sin ninguna suscripción: 0
+Cuentas con fecha_registro POSTERIOR a su primera suscripción: 3585
+Porcentaje sobre cuentas con suscripción: 71.70%
+Cuentas con fecha_registro no interpretable entre las que tienen suscripción (excluidas de la comparación): 0
+
+==============================================================================
+(e) Diferencia en días (registro - primera suscripción)
+    Qué mide: qué tan grande es el desfase en las cuentas con registro posterior a su primera suscripción.
+------------------------------------------------------------------------------
+Mínimo: 1 días
+Mediana: 580.0 días
+Máximo: 1701 días
+
+==============================================================================
+(f) Pregunta de control
+    Qué mide: cuentas con fecha_registro > 2025-12-31 que, aun así, tienen suscripciones.
+------------------------------------------------------------------------------
+Cuentas con fecha_registro > 2025-12-31 Y con suscripciones: 926

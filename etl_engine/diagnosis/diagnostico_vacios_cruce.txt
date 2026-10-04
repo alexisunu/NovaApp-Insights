@@ -1,0 +1,141 @@
+DIAGNÓSTICO DE VACÍOS CRUZADOS Y UNICIDAD (solo lectura)
+fact_suscripciones deduplicada: 73942 filas
+fact_uso deduplicada: 250000 filas
+
+==============================================================================
+(a) usuarios_activos nulo (suscripciones)
+    Qué mide: dónde se concentran los nulos y qué % representan dentro de cada grupo.
+------------------------------------------------------------------------------
+Total nulos: 540 de 73942 (0.73%)
+-- Por plan --
+            nulos  total  pct_nulos_en_grupo
+plan                                        
+Business       67   9733                0.69
+Enterprise     55   7182                0.77
+Free          159  22651                0.70
+Pro           126  15114                0.83
+Starter       133  19262                0.69
+-- Por churn --
+       nulos  total  pct_nulos_en_grupo
+churn                                  
+0        517  70534                0.73
+1         23   3408                0.67
+-- Por año de fecha_id --
+      nulos  total  pct_nulos_en_grupo
+año                                   
+2022     51   8466                0.60
+2023    179  19754                0.91
+2024    144  23143                0.62
+2025    166  22579                0.74
+-- Por mes (AAAA-MM) --
+         nulos  total  pct_nulos_en_grupo
+mes                                      
+2022-01      2    101                1.98
+2022-02      0    222                0.00
+2022-03      1    326                0.31
+2022-04      3    424                0.71
+2022-05      2    544                0.37
+2022-06      7    667                1.05
+2022-07      3    792                0.38
+2022-08      8    902                0.89
+2022-09      5    990                0.51
+2022-10      6   1065                0.56
+2022-11      5   1178                0.42
+2022-12      9   1255                0.72
+2023-01     13   1332                0.98
+2023-02     13   1408                0.92
+2023-03     13   1479                0.88
+2023-04     12   1555                0.77
+2023-05     10   1609                0.62
+2023-06     10   1644                0.61
+2023-07     20   1681                1.19
+2023-08     14   1738                0.81
+2023-09     19   1780                1.07
+2023-10     21   1802                1.17
+2023-11     12   1846                0.65
+2023-12     22   1880                1.17
+2024-01     14   1898                0.74
+2024-02      7   1908                0.37
+2024-03     12   1935                0.62
+2024-04     12   1940                0.62
+2024-05      6   1937                0.31
+2024-06     13   1941                0.67
+2024-07     15   1934                0.78
+2024-08     17   1927                0.88
+2024-09      9   1933                0.47
+2024-10     14   1929                0.73
+2024-11     15   1931                0.78
+2024-12     10   1930                0.52
+2025-01     15   1914                0.78
+2025-02     17   1925                0.88
+2025-03     20   1936                1.03
+2025-04     13   1943                0.67
+2025-05     15   1958                0.77
+2025-06     13   1970                0.66
+2025-07      7   1982                0.35
+2025-08     14   1992                0.70
+2025-09     20   1896                1.05
+2025-10      8   1785                0.45
+2025-11     14   1686                0.83
+2025-12     10   1592                0.63
+
+==============================================================================
+(b) duracion_min nulo (uso)
+    Qué mide: dónde se concentran los nulos de duración por feature, año y cuenta (top 10).
+------------------------------------------------------------------------------
+Total nulos: 2100 de 250000 (0.84%)
+-- Por feature (valores tal como vienen, sin normalizar) --
+              nulos  total  pct_nulos_en_grupo
+feature                                       
+Dashboard       569  63976                0.89
+Reporte         417  49558                0.84
+Exportar        293  32739                0.89
+API             290  34193                0.85
+Integración     221  27476                0.80
+Colaboración    178  25021                0.71
+Alertas         119  14991                0.79
+REPORTE           6    680                0.88
+dashboard         6    857                0.70
+Api               1    509                0.20
+-- Por año de fecha_id --
+      nulos  total  pct_nulos_en_grupo
+año                                   
+2021      9    900                1.00
+2022    533  62386                0.85
+2023    554  62451                0.89
+2024    504  62183                0.81
+2025    500  62080                0.81
+-- Top 10 cuentas con más nulos --
+           nulos  total  pct_nulos_en_grupo
+cuenta_id                                  
+1677           5     51                9.80
+3242           5     58                8.62
+2264           4     45                8.89
+2180           4     54                7.41
+1945           4     50                8.00
+4914           4     49                8.16
+1273           3     63                4.76
+1996           3     54                5.56
+4682           3     57                5.26
+2494           3     50                6.00
+
+==============================================================================
+(c) usuarios_activos == 0
+    Qué mide: filas con cero usuarios activos (valor real, no nulo), por plan y churn.
+------------------------------------------------------------------------------
+Total usuarios_activos == 0: 0 de 73942 (0.00%)
+
+==============================================================================
+(d) Unicidad
+    Qué mide: parejas (cuenta_id, fecha_id) repetidas, cuenta_id repetidos y naturaleza de los IDs duplicados.
+------------------------------------------------------------------------------
+fact_suscripciones deduplicada: filas en parejas (cuenta_id, fecha_id) repetidas: 0 | parejas distintas repetidas: 0
+dim_cuenta: filas con cuenta_id repetido: 0 (cuenta_id distintos repetidos: 0)
+fact_suscripciones: sub_id duplicados (filas sobrantes): 420
+  Filas totalmente idénticas a una previa: 420
+  Mismo sub_id pero valores distintos:   0
+  sub_id distintos con repetición: 420 | con contenido en conflicto: 0
+fact_uso: uso_id duplicados (filas sobrantes): 2600
+  Filas totalmente idénticas a una previa: 2600
+  Mismo uso_id pero valores distintos:   0
+  uso_id distintos con repetición: 2600 | con contenido en conflicto: 0

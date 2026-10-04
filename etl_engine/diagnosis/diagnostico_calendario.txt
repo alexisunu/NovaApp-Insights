@@ -1,0 +1,55 @@
+DIAGNÓSTICO DE CALENDARIO E INTEGRIDAD (solo lectura)
+dim_tiempo: 1461 fechas válidas (fecha_id distintos: 1461)
+fact_uso: 252600 filas crudas, 250000 deduplicadas por uso_id
+fact_suscripciones: 74362 filas crudas, 73942 deduplicadas por sub_id
+
+==============================================================================
+(a) fact_uso con fecha_id fuera de dim_tiempo
+    Qué mide: rango y distribución temporal de usos cuya fecha no existe en el calendario oficial.
+------------------------------------------------------------------------------
+Sobre fact_uso CRUDA: filas con fecha_id fuera de dim_tiempo = 910
+Fecha mínima: 2021-01-15 | Fecha máxima: 2021-01-15
+Conteo por año:
+fecha_id
+2021    910
+Conteo por mes (AAAA-MM):
+fecha_id
+2021-01    910
+
+Sobre fact_uso DEDUPLICADA por uso_id: filas con fecha_id fuera de dim_tiempo = 900
+Fecha mínima: 2021-01-15 | Fecha máxima: 2021-01-15
+Conteo por año:
+fecha_id
+2021    900
+Conteo por mes (AAAA-MM):
+fecha_id
+2021-01    900
+
+==============================================================================
+(b) fact_suscripciones con fecha_id fuera de dim_tiempo
+    Qué mide: rango y distribución temporal de suscripciones cuya fecha no existe en el calendario oficial.
+------------------------------------------------------------------------------
+Sobre fact_suscripciones DEDUPLICADA por sub_id: filas con fecha_id fuera de dim_tiempo = 0
+No hay filas fuera de calendario.
+
+==============================================================================
+(c) Integridad referencial en fact_suscripciones
+    Qué mide: suscripciones con cuenta_id ausente en dim_cuenta o plan_id ausente en dim_plan.
+------------------------------------------------------------------------------
+cuenta_id inexistente en dim_cuenta: 0 filas (0 cuentas distintas)
+plan_id inexistente en dim_plan: 0 filas (0 planes distintos)
+
+==============================================================================
+(d) Solapamiento de motivos en fact_uso
+    Qué mide: cuenta_id sin cuenta que además tienen fecha fuera de calendario.
+------------------------------------------------------------------------------
+fact_uso CRUDA:
+  Solo cuenta inexistente:   1815
+  Solo fecha fuera calendario: 910
+  AMBOS motivos (solapamiento): 0
+  Total con al menos un motivo: 2725
+fact_uso DEDUPLICADA por uso_id:
+  Solo cuenta inexistente:   1800
+  Solo fecha fuera calendario: 900
+  AMBOS motivos (solapamiento): 0
+  Total con al menos un motivo: 2700
