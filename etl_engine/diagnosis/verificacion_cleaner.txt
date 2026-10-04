@@ -1,0 +1,49 @@
+Valores únicos de pais tras limpiar: ['Argentina', 'Chile', 'Colombia', 'Ecuador', 'España', 'México', 'Perú', 'Uruguay']
+Valores únicos de feature tras limpiar: ['API', 'Alertas', 'Colaboración', 'Dashboard', 'Exportar', 'Integración', 'Reporte']
+
+CONCILIACIÓN DE FILAS DE HECHOS
+  326962 - 3020 - 2700 = 321242 (filas válidas: 321242)
+  Cuarentena por tabla y motivo:
+tabla_origen  motivo_rechazo                   
+fact_uso      Cuenta inexistente                   1800
+              Fecha fuera de calendario oficial     900
+
+TABLA DE VERIFICACIÓN
+chequeo                                             |  esperado |  obtenido | resultado
+Duplicados sub_id                                   |       420 |       420 | OK
+  sub_id idénticos                                  |       420 |       420 | OK
+  sub_id en conflicto                               |         0 |         0 | OK
+Duplicados uso_id                                   |      2600 |      2600 | OK
+  uso_id idénticos                                  |      2600 |      2600 | OK
+  uso_id en conflicto                               |         0 |         0 | OK
+Parejas (cuenta, mes) repetidas                     |         0 |         0 | OK
+cuenta_id repetido en dim_cuenta                    |         0 |         0 | OK
+mrr < 0                                             |       124 |       124 | OK
+  de esos, |mrr| coincide con el precio             |       124 |       124 | OK
+mrr == 99999                                        |       260 |       260 | OK
+Usuarios superan el límite del plan                 |       317 |       317 | OK
+Free con mrr=0                                      |     22558 |     22558 | OK
+mrr 0 o nulo en planes de pago                      |         0 |         0 | OK
+usuarios_activos nulos                              |       540 |       540 | OK
+duracion_min nulos                                  |      2100 |      2100 | OK
+Integridad suscripciones: sin cuenta                |         0 |         0 | OK
+Integridad suscripciones: sin plan                  |         0 |         0 | OK
+Integridad suscripciones: fecha fuera               |         0 |         0 | OK
+fact_uso sin cuenta                                 |      1800 |      1800 | OK
+fact_uso fecha fuera de dim_tiempo                  |       900 |       900 | OK
+fact_uso ambos motivos                              |         0 |         0 | OK
+Cuentas con registro posterior a su 1ª suscripción  |      3585 |      3585 | OK
+Cuentas con registro posterior al calendario        |       926 |       926 | OK
+Filas finales: suscripciones                        |     73942 |     73942 | OK
+Filas finales: uso                                  |    247300 |    247300 | OK
+Filas finales: cuentas                              |      5000 |      5000 | OK
+Filas finales: rechazos                             |      2700 |      2700 | OK
+Conciliación (extraídas - duplicados - cuarentena)  |    321242 |    321242 | OK
+Conciliación coincide con filas válidas             |    321242 |    321242 | OK
+mrr distinto del precio de su plan                  |         0 |         0 | OK
+mrr nulos                                           |         0 |         0 | OK
+Valores únicos de pais                              |         8 |         8 | OK
+Features no reconocidos                             |         0 |         0 | OK
+No nulos que se vuelven nulos al convertir a número |         0 |         0 | OK
+
+Resumen: 35 OK, 0 FALLA
