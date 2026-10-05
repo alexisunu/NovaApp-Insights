@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load formato %}
+
+{% block titulo %}Privacidad{% endblock %}
+{% block encabezado %}Privacidad{% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 1 · E3 · Criterio D (15 %)</span>
+  <p>Quitar nombres no basta. Hay que medir k: el tamaño del grupo más pequeño que comparte los mismos
+     cuasi-identificadores. Meta del curso: k ≥ {{ meta }}.</p>
+</aside>
+
+<div class="rejilla dos">
+  <section class="tarjeta">
+    <h2>Antes de generalizar</h2>
+    {% if antes %}
+      <p class="sub">{{ antes.columnas|join:" + " }}</p>
+      <div class="medida {% if antes.cumple %}bien{% else %}mal{% endif %}">
+        <div class="medida-k">k = {{ antes.k }}</div>
+        <div class="medida-pista" title="La marca es la meta: k = {{ meta }}"><i style="width: {{ antes.ancho }}%"></i><b></b></div>
+      </div>
+      <p class="lectura">
+        <strong class="{% if antes.cumple %}bien{% else %}mal{% endif %}">{{ antes.unicas|miles }} de {{ antes.total|miles }}</strong>
+        cuentas son únicas: se pueden reconocer con un solo dato externo.
+        {% if antes.pct_riesgo is not None %}El {{ antes.pct_riesgo|decimal:1 }} % está en grupos de menos de {{ meta }}.{% endif %}
+      </p>
+      <p class="pie">Medido por el ETL sobre el archivo original, antes de retirar los datos personales.</p>
+    {% else %}
+      <p class="vacio">La medición inicial aparece después de la primera carga.</p>
+    {% endif %}
+  </section>
+
+  <section class="tarjeta">
+    <h2>Después de generalizar</h2>
+    {% if despues %}
+      <p class="sub">{{ columnas_despues|join:" + " }}</p>
+      <div class="medida {% if despues.cumple %}bien{% else %}mal{% endif %}">
+        <div class="medida-k">k = {{ despues.k }}</div>
+        <div class="medida-pista" title="La marca es la meta: k = {{ meta }}"><i style="width: {{ despues.ancho }}%"></i><b></b></div>
+      </div>
+      {% if despues.cumple %}
+        <p class="lectura">
+          <strong class="bien">{{ despues.unicas|miles }} únicas.</strong> Meta cumplida: el grupo más pequeño tiene {{ despues.k }} cuentas.
+          {% if perdido %}Lo que se perdió: el análisis por <span class="mono">{{ perdido|join:", " }}</span>.{% endif %}
+        </p>
+      {% else %}
+        <p class="lectura">
+          <strong class="mal">Meta no cumplida.</strong>
+          {{ despues.en_riesgo|miles }} de {{ despues.total|miles }} cuentas siguen en grupos de menos de {{ meta }}:
+          {% for c in despues.combinaciones %}<span class="mono">{{ c.valores }}</span> ({{ c.cuentas }}){% if not forloop.last %}; {% endif %}{% endfor %}{% if despues.combinaciones_mas %} y {{ despues.combinaciones_mas }} más{% endif %}.
+        </p>
+      {% endif %}
+      <p class="pie">Prueba de re-identificación hecha ahora mismo sobre <code>dim_cuenta</code>:
+        {{ despues.total|miles }} cuentas en {{ despues.grupos|miles }} grupos.</p>
+    {% else %}
+      <p class="vacio">Todavía no hay cuentas en la base para medir.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="tarjeta">
+  <h2>Clasificación de columnas</h2>
+  <p class="sub">dim_cuenta · qué se hizo con cada una{% if responsable %} · responsable: {{ responsable }}{% if revisor %}, revisa {{ revisor }}{% endif %}{% endif %}</p>
+
+  <div class="tabla-envoltura">
+    <table class="tabla">
+      <thead>
+        <tr><th>Columna</th><th>Tipo</th><th>Acción</th><th>Criterio</th></tr>
+      </thead>
+      <tbody>
+        {% for c in clasificacion %}
+          <tr>
+            <td class="mono">{{ c.columna }}</td>
+            <td><span class="etiqueta {{ c.color }}">{{ c.clase }}</span></td>
+            <td>{{ c.tratamiento }}</td>
+            <td class="tenue">{{ c.criterio }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="vacio">La clasificación aparece después de la primera carga.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="pie">Seudonimizar el NIT con un hash con clave (HMAC-SHA256) permite unir tablas sin mostrar el dato.
+     No es anonimizar: quien tenga la clave puede volver a calcularlo, así que <code>NIT_CLAVE</code> no se sube al repositorio.</p>
+</section>
+{% endblock %}
