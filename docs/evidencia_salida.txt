@@ -1,0 +1,59 @@
+
+--- Ejecución 1 completada con estado: EXITOSA ---
+
+Resumen por tabla:
+  dim_plan: 5 extraídas | 5 insertadas | 0 actualizadas | 0 sin cambio
+  dim_tiempo: 1461 extraídas | 1461 insertadas | 0 actualizadas | 0 sin cambio
+  dim_cuenta: 5000 extraídas | 5000 insertadas | 0 actualizadas | 0 sin cambio
+  fact_suscripciones: 73942 extraídas | 73942 insertadas | 0 actualizadas | 0 sin cambio
+  fact_uso: 247300 extraídas | 247300 insertadas | 0 actualizadas | 0 sin cambio
+
+Totales de inserción:
+  Insertadas: 327708
+  Actualizadas: 0
+  Sin cambio: 0
+
+Conciliación:
+  326962 extraídas - 3020 duplicadas - 2700 cuarentena = 321242 válidas
+
+Cuarentena actual en base de datos:
+  fact_uso | Cuenta inexistente: 1800 filas
+  fact_uso | Fecha fuera de calendario oficial: 900 filas
+
+Tiempos de ejecución:
+  Extraccion: 6.19s
+  Limpieza: 1.12s
+  Privacidad: 0.15s
+  Carga: 28.65s
+  TOTAL: 36.10s                                                                                                                                        
+
+Valores únicos de pais tras limpiar: ['Argentina', 'Chile', 'Colombia', 'Ecuador', 'España', 'México', 'Perú', 'Uruguay']
+Valores únicos de feature tras limpiar: ['API', 'Alertas', 'Colaboración', 'Dashboard', 'Exportar', 'Integración', 'Reporte']
+
+--- Ejecución 2 completada con estado: EXITOSA ---
+
+Resumen por tabla:
+  dim_plan: 5 extraídas | 0 insertadas | 0 actualizadas | 5 sin cambio
+  dim_tiempo: 1461 extraídas | 0 insertadas | 0 actualizadas | 1461 sin cambio
+  dim_cuenta: 5000 extraídas | 0 insertadas | 0 actualizadas | 5000 sin cambio
+  fact_suscripciones: 73942 extraídas | 0 insertadas | 0 actualizadas | 73942 sin cambio
+  fact_uso: 247300 extraídas | 0 insertadas | 0 actualizadas | 247300 sin cambio
+
+Totales de inserción:
+  Insertadas: 0
+  Actualizadas: 0
+  Sin cambio: 327708
+
+Conciliación:
+  326962 extraídas - 3020 duplicadas - 2700 cuarentena = 321242 válidas
+
+Cuarentena actual en base de datos:
+  fact_uso | Cuenta inexistente: 1800 filas
+  fact_uso | Fecha fuera de calendario oficial: 900 filas
+
+Tiempos de ejecución:
+  Extraccion: 6.23s
+  Limpieza: 1.07s
+  Privacidad: 0.15s
+  Carga: 6.65s
+  TOTAL: 14.11s
