@@ -32,11 +32,10 @@ class DimTiempo(models.Model):
 
 class DimCuenta(models.Model):
     cuenta_id = models.IntegerField(primary_key=True)
-    nit_hash = models.CharField(max_length=64)  # sin unique hasta verificar duplicados
+    nit_hash = models.CharField(max_length=64, unique=True)
     zona = models.CharField(max_length=100, blank=True, default="")
     industria = models.CharField(max_length=100, blank=True, default="")
     canal_adquisicion = models.CharField(max_length=100, blank=True, default="")
-    #plan_inicial = models.ForeignKey(DimPlan, on_delete=models.PROTECT)
     fecha_registro_inconsistente = models.BooleanField(default=False)
 
     class Meta:
