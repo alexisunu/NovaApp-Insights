@@ -61,3 +61,20 @@ python etl_engine/verificar_privacy.py --excel "C:\ruta\al\PROYECTO_NovaApp.xlsx
 ```
 
 > **Nota:** El archivo Excel original y el archivo CSV se encuentran ignorados en Git (vía `.gitignore`). Es indispensable que cuentes con ellos en tu disco para poder ejecutar el ETL.
+
+### 7. Interfaz web (Hito 1)
+Con la base migrada, indica dónde están los archivos fuente y levanta el servidor:
+
+```powershell
+$env:NOVAAPP_EXCEL="C:\ruta\al\PROYECTO_NovaApp.xlsx"
+$env:NOVAAPP_CSV="C:\ruta\al\na_fact_uso.csv"
+python manage.py runserver
+```
+
+Abre http://127.0.0.1:8000/ . Hay cuatro pantallas: **Carga de datos**, **Calidad**, **Privacidad** y **Modelo**.
+Todo lo que muestran sale de la base (`ejecucion_etl`, `bitacora_cambios`, `stg_rechazos` y las tablas del modelo).
+
+- **Ejecutar carga** corre el mismo pipeline que `python manage.py ejecutar_etl`. Presiónalo dos veces: la segunda fila del historial debe decir `0` nuevas y `✓ no duplicó`.
+- **Reiniciar base** vacía hechos, cuentas, planes, cuarentena e historial (conserva `dim_tiempo`) para repetir la demostración desde cero. Pide confirmación.
+
+Las pruebas de las pantallas están en `dashboard/tests_vistas.py` y corren con `python manage.py test dashboard`.

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load formato %}
+
+{% block titulo %}Carga de datos{% endblock %}
+{% block encabezado %}Carga de datos{% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 1 · E5 · Criterio A (25 %)</span>
+  <p>Lo mínimo del hito 1: el programa corre solo, de principio a fin, y se puede ejecutar dos veces sin duplicar.
+     Presione "Ejecutar carga" dos veces y mire el conteo: esa es la prueba que se hace en la revisión.</p>
+</aside>
+
+<section class="tarjeta" id="proceso"
+         data-url-ejecutar="{% url 'dashboard:ejecutar_carga' %}"
+         data-url-reiniciar="{% url 'dashboard:reiniciar_base' %}">
+  <div class="tarjeta-cabecera">
+    <div>
+      <h2>Proceso de carga</h2>
+      <p class="sub">Origen: {{ origen }} + {{ origen_csv }} · destino: PostgreSQL</p>
+    </div>
+    <div class="acciones">
+      <button type="button" class="boton primario" id="btn-ejecutar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+        <span>Ejecutar carga</span>
+      </button>
+      <button type="button" class="boton" id="btn-reiniciar">Reiniciar base</button>
+    </div>
+  </div>
+
+  {% if not rutas_configuradas %}
+    <p class="aviso">Para ejecutar desde aquí, defina <code>NOVAAPP_EXCEL</code> y <code>NOVAAPP_CSV</code>
+       con las rutas de los archivos fuente antes de iniciar el servidor.</p>
+  {% endif %}
+
+  <div class="pasos" id="pasos">
+    {% for paso in pasos %}
+      <div class="paso{% if paso.listo %} listo{% endif %}">
+        <div class="paso-nombre">{{ paso.numero }} · {{ paso.nombre }}</div>
+        <div class="paso-valor">{{ paso.valor }}</div>
+        <div class="paso-detalle">{{ paso.detalle }}</div>
+        <div class="paso-barra"><i></i></div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="rejilla dos-uno">
+  <section class="tarjeta">
+    <h2>Historial de ejecuciones</h2>
+    <p class="sub">Si la segunda ejecución cambia el total, el programa duplica</p>
+
+    <div class="tabla-envoltura">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Hora</th>
+            <th class="num">Nuevas</th>
+            <th class="num">Total en la base</th>
+            <th>Doble carga</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in historial %}
+            <tr>
+              <td class="mono">{{ fila.numero }}</td>
+              <td class="mono" title="{{ fila.hora|date:'d/m/Y' }}">{{ fila.hora|date:"H:i:s" }}</td>
+              <td class="num">{{ fila.nuevas|miles }}</td>
+              <td class="num">{{ fila.total|miles }}</td>
+              <td><span class="etiqueta {{ fila.color }}">{{ fila.marca }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="vacio">Aún no hay ejecuciones. Presione "Ejecutar carga".</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if historial_ocultas %}
+      <p class="pie">Se muestran las últimas {{ historial|length }} ejecuciones; hay {{ historial_ocultas }} anteriores.</p>
+    {% endif %}
+
+    <pre class="consola" id="consola" aria-live="polite">{% for bloque in consola %}{% if not forloop.first %}
+{% endif %}{% for linea in bloque %}<span class="{{ linea.clase|default:'' }}">{{ linea.texto }}</span>
+{% endfor %}{% empty %}<span class="orden">$ python manage.py ejecutar_etl</span>
+<span class="tenue">(esperando…)</span>
+{% endfor %}</pre>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Filas que no se cargaron</h2>
+    <p class="sub">Todo lo que se descarta queda contado y con motivo</p>
+
+    <div class="tabla-envoltura">
+      <table class="tabla">
+        <thead>
+          <tr><th>Motivo</th><th class="num">Filas</th><th>Destino</th></tr>
+        </thead>
+        <tbody>
+          {% for fila in no_cargadas %}
+            <tr>
+              <td>{{ fila.motivo }}</td>
+              <td class="num">{{ fila.filas|miles }}</td>
+              <td><span class="etiqueta {{ fila.color }}">{{ fila.destino }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="vacio">{% if ultima %}La última ejecución no descartó ninguna fila.{% else %}Aparecerán aquí después de la primera carga.{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="pie">La cuarentena es una tabla aparte (<code>stg_rechazos</code>): nada se borra sin dejar rastro.</p>
+  </section>
+</div>
+{% endblock %}

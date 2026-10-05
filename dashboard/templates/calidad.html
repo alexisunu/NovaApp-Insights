@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load formato %}
+
+{% block titulo %}Calidad de los datos{% endblock %}
+{% block encabezado %}Calidad de los datos{% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 1 · E2 · Criterios B y C (40 %)</span>
+  <p>Cada regla tiene dimensión, conteo y decisión. La fila resaltada es la trampa: parece error y no lo es.
+     Se documenta y no se toca.</p>
+</aside>
+
+<div class="indicadores">
+  <div class="indicador">
+    <div class="indicador-nombre">Reglas revisadas</div>
+    <div class="indicador-valor">{% if ultima %}{{ reglas|length }}{% else %}—{% endif %}</div>
+    <div class="indicador-detalle">{% if ultima %}{{ con_hallazgos }} con hallazgos · {{ dimensiones|length }} dimensiones{% else %}sin cargas todavía{% endif %}</div>
+  </div>
+  <div class="indicador">
+    <div class="indicador-nombre">Duplicados eliminados</div>
+    <div class="indicador-valor">{{ duplicados|miles }}</div>
+    <div class="indicador-detalle">se conserva una copia de cada uno</div>
+  </div>
+  <div class="indicador">
+    <div class="indicador-nombre">Vacíos legítimos</div>
+    <div class="indicador-valor">{{ vacios_legitimos|miles }}</div>
+    <div class="indicador-detalle">{{ vacios_detalle }}</div>
+  </div>
+  <div class="indicador">
+    <div class="indicador-nombre">En cuarentena</div>
+    <div class="indicador-valor">{{ cuarentena|miles }}</div>
+    <div class="indicador-detalle">filas guardadas aparte, no borradas</div>
+  </div>
+</div>
+
+<section class="tarjeta">
+  <div class="tarjeta-cabecera">
+    <div>
+      <h2>Diagnóstico</h2>
+      <p class="sub">Conteos sobre el archivo original, antes de corregir. Toque una fila para ver por qué se decidió así.</p>
+    </div>
+    {% if sin_hallazgos %}
+      <label class="casilla">
+        <input type="checkbox" id="ver-ceros">
+        Ver también las {{ sin_hallazgos }} reglas sin hallazgos
+      </label>
+    {% endif %}
+  </div>
+
+  <div class="tabla-envoltura">
+    <table class="tabla diagnostico" id="diagnostico">
+      <thead>
+        <tr>
+          <th>Dimensión</th>
+          <th>Tabla</th>
+          <th>Regla</th>
+          <th class="num">Filas</th>
+          <th>Decisión</th>
+          <th>Responsable</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reglas %}
+          <tr class="regla{% if r.resaltada %} resaltada abierta{% endif %}{% if r.filas == 0 %} en-cero{% endif %}" tabindex="0" aria-expanded="{% if r.resaltada %}true{% else %}false{% endif %}">
+            <td>{{ r.dimension }}</td>
+            <td class="mono">{{ r.tabla }}</td>
+            <td class="celda-regla">
+              {{ r.regla }}
+              {% if r.justificacion %}<div class="justificacion">{{ r.justificacion }}</div>{% endif %}
+            </td>
+            <td class="num">{{ r.filas|miles }}</td>
+            <td><span class="etiqueta {{ r.color }}">{{ r.decision }}</span></td>
+            <td class="responsable">{{ r.responsable|default:"—" }}{% if r.revisor %}<small>revisa {{ r.revisor }}</small>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="vacio">El diagnóstico aparece después de la primera carga.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="rejilla auto">
+  {% for m in mapeos %}
+    <section class="tarjeta">
+      <h2>{{ m.columna }}: antes y después</h2>
+      <p class="sub">Verificar el resultado, no solo el conteo · <span class="mono">{{ m.tabla }}</span></p>
+      <div class="tabla-envoltura">
+        <table class="tabla">
+          <thead><tr><th>Valor original</th><th>Queda como</th></tr></thead>
+          <tbody>
+            {% for fila in m.filas %}
+              <tr>
+                <td class="mono">{{ fila.originales|join:" · " }}</td>
+                <td><strong>{{ fila.nuevo }}</strong></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="pie">{{ m.filas_cambiadas|miles }} filas cambiaron: {{ m.variantes }} formas de escribirlo quedaron en {{ m.valores }} valores.
+        {% if m.columna == "pais" %}Si se mide k antes de unificar países, las variantes crean grupos falsos de 1 o 2 cuentas.{% endif %}</p>
+    </section>
+  {% endfor %}
+
+  <section class="tarjeta">
+    <h2>Reglas por dimensión</h2>
+    <p class="sub">DAMA-DMBOK, Encuentro 2</p>
+    <div class="barras">
+      {% for d in dimensiones %}
+        <div class="barras-nombre">{{ d.nombre }}</div>
+        <div class="barras-pista"><i style="width: {{ d.ancho }}%"></i><span>{{ d.reglas }} regla{{ d.reglas|pluralize }}</span></div>
+      {% empty %}
+        <p class="vacio">Sin reglas registradas todavía.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

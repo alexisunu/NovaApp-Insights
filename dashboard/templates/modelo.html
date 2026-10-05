@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load formato %}
+
+{% block titulo %}Modelo de datos{% endblock %}
+{% block encabezado %}Modelo de datos{% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 1 · E4 · Criterio E (10 %)</span>
+  <p>Esquema de estrella con la granularidad dicha en una frase. NovaApp tiene una segunda tabla de hechos (uso)
+     que comparte dim_cuenta y dim_tiempo: son dimensiones conformadas.</p>
+</aside>
+
+<section class="tarjeta">
+  <h2>Modelo de estrella</h2>
+  <p class="sub">Granularidad:
+    {% for h in hechos %}<span class="mono">{{ h.nombre }}</span> <strong>{{ h.granularidad|lower }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}
+  </p>
+
+  <div class="diagrama-envoltura">
+    <svg class="diagrama" viewBox="0 0 {{ diagrama.ancho }} {{ diagrama.alto }}" role="img"
+         aria-label="Diagrama del esquema de estrella: dos tablas de hechos que comparten las dimensiones cuenta y tiempo">
+      {% for e in diagrama.enlaces %}
+        <path class="enlace" d="{{ e.trazo }}"/>
+        <text class="cardinalidad" x="{{ e.n_x }}" y="{{ e.n_y }}" text-anchor="middle">N</text>
+        <text class="cardinalidad" x="{{ e.uno_x }}" y="{{ e.uno_y }}" text-anchor="middle">1</text>
+      {% endfor %}
+      {% for c in diagrama.cajas %}
+        {% if c.hecho %}
+          <g class="caja hecho">
+            <rect class="marco" x="{{ c.x }}" y="{{ c.y }}" width="{{ c.ancho }}" height="{{ c.alto }}" rx="6"/>
+            <path class="cinta" d="M{{ c.x }} {{ c.y|add:26 }}v-20a6 6 0 0 1 6-6h{{ c.ancho|add:-12 }}a6 6 0 0 1 6 6v20z"/>
+            <text class="caja-titulo" x="{{ c.x|add:10 }}" y="{{ c.y|add:17 }}">{{ c.nombre }}</text>
+            <text class="caja-filas en-cinta" x="{{ c.x|add:c.ancho|add:-10 }}" y="{{ c.y|add:17 }}" text-anchor="end">{{ c.filas|miles }} filas</text>
+            {% for col in c.columnas %}
+              <text class="columna" x="{{ c.x|add:10 }}" y="{{ col.y }}">{{ col.nombre }}</text>
+              {% if col.llave %}<text class="llave" x="{{ c.x|add:c.ancho|add:-10 }}" y="{{ col.y }}" text-anchor="end">{{ col.llave }}</text>{% endif %}
+            {% endfor %}
+          </g>
+        {% else %}
+          <g class="caja dimension">
+            <rect class="marco" x="{{ c.x }}" y="{{ c.y }}" width="{{ c.ancho }}" height="{{ c.alto }}" rx="6"/>
+            <text class="caja-titulo" x="{{ c.x|add:12 }}" y="{{ c.y|add:23 }}">{{ c.nombre }}</text>
+            <text class="caja-filas" x="{{ c.x|add:12 }}" y="{{ c.y|add:40 }}">{{ c.filas|miles }} filas</text>
+          </g>
+        {% endif %}
+      {% endfor %}
+    </svg>
+  </div>
+</section>
+
+<div class="rejilla dos">
+  <section class="tarjeta">
+    <h2>Tablas y granularidad</h2>
+    <p class="sub">Qué representa una fila de cada tabla</p>
+    <div class="tabla-envoltura">
+      <table class="tabla">
+        <thead>
+          <tr><th>Tabla</th><th>Una fila es</th><th>Llave</th><th class="num">Filas</th></tr>
+        </thead>
+        <tbody>
+          {% for t in tablas %}
+            <tr>
+              <td class="mono sin-corte"><i class="punto {% if t.tipo == 'Hechos' %}hecho{% else %}dimension{% endif %}" title="{{ t.tipo }}"></i>{{ t.nombre }}</td>
+              <td>{{ t.granularidad }}</td>
+              <td class="mono">{{ t.pk }}</td>
+              <td class="num">{{ t.filas_cargadas|miles }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Integridad</h2>
+    <p class="sub">Revisión de llaves después de cargar</p>
+    <div class="tabla-envoltura">
+      <table class="tabla">
+        <thead>
+          <tr><th>Relación</th><th class="num">Huérfanos</th><th class="num">En cuarentena</th></tr>
+        </thead>
+        <tbody>
+          {% for i in integridad %}
+            <tr>
+              <td class="mono sin-corte" title="Llave: {{ i.fk }}">{{ i.hecho }} → {{ i.dimension }}</td>
+              <td class="num {% if i.huerfanos %}mal{% else %}bien{% endif %}">{{ i.huerfanos|miles }}</td>
+              <td class="num">{% if i.cuarentena %}{{ i.cuarentena|miles }}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="pie">
+      {% if total_cuarentena %}Las {{ total_cuarentena|miles }} filas con llaves sin dimensión quedaron en cuarentena (<code>stg_rechazos</code>), no se borraron.
+      {% else %}Huérfanos: filas de hechos cuya llave no existe en la dimensión. Se cuentan ahora mismo sobre la base.{% endif %}
+    </p>
+  </section>
+</div>
+{% endblock %}
