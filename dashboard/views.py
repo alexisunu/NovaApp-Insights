@@ -16,14 +16,19 @@ import os
 import threading
 import unicodedata
 from collections import Counter
+import tempfile
+import shutil
+import pandas as pd
 
 from django.apps import apps
 from django.db import transaction
 from django.db.models import Count
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.contrib import messages
+from django.utils.text import get_valid_filename
 
 from .contexto import FKS, contexto_modelo
 from .models import (
@@ -274,50 +279,126 @@ def carga(request):
     ultima = ctx["ultima"]
     bitacora = list(ultima.bitacora.order_by("id")) if ultima else []
     historial = _historial()
+    orden_tablas = ["dim_plan", "dim_tiempo", "dim_cuenta", "fact_suscripciones", "fact_uso"]
+    por_tabla_detalles = []
+    if ultima and ultima.filas_por_tabla:
+        for tbl in orden_tablas:
+            datos = ultima.filas_por_tabla.get(tbl, {})
+            por_tabla_detalles.append({
+                "nombre": tbl,
+                "insertadas": datos.get("insertadas", 0),
+                "actualizadas": datos.get("actualizadas", 0),
+                "sin_cambio": datos.get("sin_cambio", 0)
+            })
+
     ctx.update({
         "pasos": _pasos(ultima, bitacora),
         "historial": historial[-HISTORIAL_VISIBLE:],
         "historial_ocultas": max(0, len(historial) - HISTORIAL_VISIBLE),
         "consola": _consola(historial),
         "no_cargadas": _no_cargadas(bitacora),
-        "origen": (ultima.archivo_excel if ultima and ultima.archivo_excel
-                   else os.path.basename(os.environ.get("NOVAAPP_EXCEL", "")) or "PROYECTO_NovaApp.xlsx"),
-        "origen_csv": (ultima.archivo_csv if ultima and ultima.archivo_csv
-                       else os.path.basename(os.environ.get("NOVAAPP_CSV", "")) or "na_fact_uso.csv"),
+        "origen": (ultima.archivo_excel if ultima and ultima.archivo_excel else "-"),
+        "origen_csv": (ultima.archivo_csv if ultima and ultima.archivo_csv else "-"),
         "rutas_configuradas": bool(os.environ.get("NOVAAPP_EXCEL") and os.environ.get("NOVAAPP_CSV")),
+        "por_tabla_detalles": por_tabla_detalles,
     })
     return render(request, "carga.html", ctx)
 
 
 @require_POST
 def ejecutar_carga(request):
-    """Corre el pipeline completo, igual que `python manage.py ejecutar_etl`."""
-    ruta_excel = os.environ.get("NOVAAPP_EXCEL")
-    ruta_csv = os.environ.get("NOVAAPP_CSV")
-    if not ruta_excel or not ruta_csv:
-        return JsonResponse({
-            "ok": False,
-            "error": "Faltan las variables de entorno NOVAAPP_EXCEL y NOVAAPP_CSV con las rutas "
-                     "de los archivos fuente. Defínalas antes de iniciar el servidor.",
-        }, status=400)
-
     if not _carga_en_curso.acquire(blocking=False):
-        return JsonResponse({"ok": False, "error": "Ya hay una carga en curso."}, status=409)
+        messages.error(request, "Ya hay una carga en curso.")
+        return redirect("dashboard:carga")
+
+    excel_temp = None
+    csv_temp = None
+    
     try:
-        from .orquestador import ejecutar_pipeline  # importa pandas: solo cuando se usa
+        usar_servidor = request.POST.get("usar_servidor") == "1"
+        if usar_servidor:
+            ruta_excel = os.environ.get("NOVAAPP_EXCEL")
+            ruta_csv = os.environ.get("NOVAAPP_CSV")
+            if not ruta_excel or not ruta_csv:
+                messages.error(request, "Faltan las variables de entorno NOVAAPP_EXCEL y NOVAAPP_CSV con las rutas de los archivos fuente. Defínalas antes de iniciar el servidor.")
+                return redirect("dashboard:carga")
+        else:
+            archivo_excel = request.FILES.get("archivo_excel")
+            archivo_csv = request.FILES.get("archivo_csv")
+            
+            if not archivo_excel:
+                messages.error(request, "El archivo Excel es obligatorio.")
+                return redirect("dashboard:carga")
+                
+            if not archivo_excel.name.lower().endswith('.xlsx'):
+                messages.error(request, "El archivo Excel debe tener extensión .xlsx.")
+                return redirect("dashboard:carga")
+                
+            if archivo_excel.size == 0 or archivo_excel.size > 50 * 1024 * 1024:
+                messages.error(request, "El archivo Excel no es válido o supera los 50 MB.")
+                return redirect("dashboard:carga")
+                
+            fd, excel_temp = tempfile.mkstemp(suffix=".xlsx", prefix=get_valid_filename(os.path.splitext(archivo_excel.name)[0]) + "_")
+            with os.fdopen(fd, 'wb') as f:
+                for chunk in archivo_excel.chunks():
+                    f.write(chunk)
+                    
+            if archivo_csv:
+                if not archivo_csv.name.lower().endswith('.csv'):
+                    messages.error(request, "El archivo CSV debe tener extensión .csv.")
+                    return redirect("dashboard:carga")
+                if archivo_csv.size == 0 or archivo_csv.size > 50 * 1024 * 1024:
+                    messages.error(request, "El archivo CSV no es válido o supera los 50 MB.")
+                    return redirect("dashboard:carga")
+                    
+                fd, csv_temp = tempfile.mkstemp(suffix=".csv", prefix=get_valid_filename(os.path.splitext(archivo_csv.name)[0]) + "_")
+                with os.fdopen(fd, 'wb') as f:
+                    for chunk in archivo_csv.chunks():
+                        f.write(chunk)
+            else:
+                try:
+                    df = pd.read_excel(excel_temp, sheet_name=None)
+                    hoja_fact_uso = None
+                    for name in df.keys():
+                        if name.strip().lower() == "fact_uso":
+                            hoja_fact_uso = name
+                            break
+                    if not hoja_fact_uso:
+                        messages.error(request, "El Excel no contiene la hoja fact_uso.")
+                        return redirect("dashboard:carga")
+                        
+                    base_excel = get_valid_filename(os.path.splitext(archivo_excel.name)[0])
+                    fd, csv_temp = tempfile.mkstemp(suffix="_fact_uso.csv", prefix=base_excel + "_")
+                    df[hoja_fact_uso].to_csv(csv_temp, index=False, encoding='utf-8')
+                except Exception as e:
+                    messages.error(request, f"revisa que el Excel tenga las hojas indicadas.")
+                    return redirect("dashboard:carga")
+
+            ruta_excel = excel_temp
+            ruta_csv = csv_temp
+
+        from .orquestador import ejecutar_pipeline
         ejecucion, tiempos = ejecutar_pipeline(ruta_excel, ruta_csv)
+        messages.success(request, f"Carga ejecutada exitosamente (ID: {ejecucion.id}).")
+        return redirect("dashboard:carga")
+        
     except Exception as error:
-        primera_linea = (str(error).strip().splitlines() or [error.__class__.__name__])[0]
-        return JsonResponse({"ok": False, "error": primera_linea[:300]}, status=500)
+        tipo_error = error.__class__.__name__
+        messages.error(request, f"Error en la ejecución del pipeline ({tipo_error}): revisa que el Excel tenga las hojas indicadas.")
+        return redirect("dashboard:carga")
+        
     finally:
         _carga_en_curso.release()
-
-    return JsonResponse({
-        "ok": True,
-        "ejecucion": ejecucion.id,
-        "estado": ejecucion.estado,
-        "tiempos": {etapa: round(segundos, 2) for etapa, segundos in tiempos.items()},
-    })
+        if excel_temp and os.path.exists(excel_temp):
+            try:
+                os.remove(excel_temp)
+            except:
+                pass
+        if csv_temp and os.path.exists(csv_temp):
+            try:
+                os.remove(csv_temp)
+            except:
+                pass
 
 
 @require_POST
@@ -403,7 +484,7 @@ def calidad(request):
             for d, n in por_dimension.items()
         ],
         "duplicados": ultima.filas_duplicadas_eliminadas if ultima else None,
-        "vacios_legitimos": sum(r["filas"] for r in legitimos) if ultima else None,
+        "vacios_legitimos": FactSuscripciones.objects.filter(plan__nombre_plan="Free", mrr=0, mrr_corregido=False).count() if ultima else None,
         "vacios_detalle": legitimos[0]["regla"] if legitimos else "ausencias que no son un error",
         "cuarentena": StgRechazos.objects.count() if ultima else None,
         "mapeos": _mapeos(bitacora),

@@ -11,6 +11,129 @@
      Presione "Ejecutar carga" dos veces y mire el conteo: esa es la prueba que se hace en la revisión.</p>
 </aside>
 
+<style>
+  /* Mejoras visuales para el formulario de carga */
+  .zona-carga {
+    margin: 20px 0;
+    background: var(--superficie-2);
+    border: 1px solid var(--borde-suave);
+    border-radius: var(--radio);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .origen-archivos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .campo-archivo {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .campo-archivo label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--texto);
+  }
+  
+  .campo-archivo input[type="file"] {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--texto-2);
+    background: var(--fondo);
+    border: 1px dashed var(--borde);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    width: 100%;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  
+  .campo-archivo input[type="file"]::file-selector-button {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    color: var(--texto);
+    padding: 6px 12px;
+    margin-right: 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+  
+  .campo-archivo input[type="file"]::file-selector-button:hover {
+    background: var(--borde-suave);
+  }
+
+  .campo-archivo input[type="file"]:hover {
+    border-color: var(--teal-claro);
+    background: rgba(39, 181, 193, 0.03);
+  }
+
+  .campo-archivo input[type="file"]:focus-visible {
+    outline: 2px solid var(--teal-claro);
+    outline-offset: 2px;
+  }
+  
+  .bloque-informativo {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(39, 181, 193, 0.1);
+    border-left: 3px solid var(--teal-claro);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    color: var(--texto-2);
+    line-height: 1.5;
+    margin-top: 16px;
+  }
+
+  .bloque-informativo svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    fill: var(--teal-claro);
+    margin-top: -1px;
+  }
+  
+  .bloque-informativo p {
+    margin: 0;
+  }
+
+  .acciones-carga {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    border-top: 1px solid var(--borde-suave);
+    padding-top: 20px;
+    margin-top: 20px;
+  }
+
+  .acciones-carga form {
+    margin: 0;
+  }
+
+  /* Distinguir el botón de peligro */
+  .boton-peligro {
+    background: transparent;
+    border-color: var(--coral);
+    color: var(--coral);
+  }
+  
+  .boton-peligro:hover {
+    background: rgba(239, 111, 100, 0.1);
+  }
+</style>
+
 <section class="tarjeta" id="proceso"
          data-url-ejecutar="{% url 'dashboard:ejecutar_carga' %}"
          data-url-reiniciar="{% url 'dashboard:reiniciar_base' %}">
@@ -20,13 +143,54 @@
       <p class="sub">Origen: {{ origen }} + {{ origen_csv }} · destino: PostgreSQL</p>
     </div>
     <div class="acciones">
-      <button type="button" class="boton primario" id="btn-ejecutar">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
-        <span>Ejecutar carga</span>
-      </button>
-      <button type="button" class="boton" id="btn-reiniciar">Reiniciar base</button>
+      <button type="button" class="boton boton-peligro" id="btn-reiniciar">Reiniciar base</button>
     </div>
   </div>
+
+  <div class="zona-carga">
+    <form id="form-carga" method="POST" action="{% url 'dashboard:ejecutar_carga' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      <div class="origen-archivos">
+        <div class="campo-archivo">
+          <label for="archivo_excel">Archivo Excel (.xlsx)*</label>
+          <input type="file" id="archivo_excel" name="archivo_excel" accept=".xlsx" required>
+        </div>
+        <div class="campo-archivo">
+          <label for="archivo_csv">Archivo CSV (.csv) opcional</label>
+          <input type="file" id="archivo_csv" name="archivo_csv" accept=".csv">
+        </div>
+      </div>
+      
+      <div class="bloque-informativo">
+        <svg viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+        <p>El Excel debe tener las hojas fact_suscripciones, dim_cuenta, dim_plan y dim_tiempo. Si no subes un CSV, el Excel también debe incluir la hoja fact_uso; si subes un CSV, se usará ese archivo para fact_uso y se ignorará la hoja fact_uso del Excel.</p>
+      </div>
+
+      <div class="acciones-carga">
+        <button type="submit" class="boton primario" id="btn-subir">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+          <span>Subir y ejecutar carga</span>
+        </button>
+      </div>
+    </form>
+    
+    <form id="form-carga-servidor" method="POST" action="{% url 'dashboard:ejecutar_carga' %}">
+      {% csrf_token %}
+      <input type="hidden" name="usar_servidor" value="1">
+      <button type="submit" class="boton" id="btn-ejecutar-servidor">
+        <span>Usar archivos configurados en el servidor</span>
+      </button>
+    </form>
+  </div>
+
+  {% if messages %}
+    <div class="mensajes">
+      {% for message in messages %}
+        <div class="mensaje {{ message.tags }}" style="padding: 12px; margin-bottom: 15px; border-radius: var(--radio); font-size: 14px; background: rgba(239, 111, 100, 0.1); color: var(--coral); border-left: 3px solid var(--coral);">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
 
   {% if not rutas_configuradas %}
     <p class="aviso">Para ejecutar desde aquí, defina <code>NOVAAPP_EXCEL</code> y <code>NOVAAPP_CSV</code>
@@ -56,6 +220,7 @@
           <tr>
             <th>#</th>
             <th>Hora</th>
+            <th>Archivos</th>
             <th class="num">Nuevas</th>
             <th class="num">Total en la base</th>
             <th>Doble carga</th>
@@ -66,6 +231,7 @@
             <tr>
               <td class="mono">{{ fila.numero }}</td>
               <td class="mono" title="{{ fila.hora|date:'d/m/Y' }}">{{ fila.hora|date:"H:i:s" }}</td>
+              <td>{{ fila.ejecucion.archivo_excel|default:"-" }} | {{ fila.ejecucion.archivo_csv|default:"-" }}</td>
               <td class="num">{{ fila.nuevas|miles }}</td>
               <td class="num">{{ fila.total|miles }}</td>
               <td><span class="etiqueta {{ fila.color }}">{{ fila.marca }}</span></td>
@@ -85,6 +251,28 @@
 {% endfor %}{% empty %}<span class="orden">$ python manage.py ejecutar_etl</span>
 <span class="tenue">(esperando…)</span>
 {% endfor %}</pre>
+  </section>
+
+  
+  <section class="tarjeta">
+    <h2>Detalle por tabla (Última ejecución)</h2>
+    <div class="tabla-envoltura">
+      <table class="tabla">
+        <thead>
+          <tr><th>Tabla</th><th class="num">Insertadas</th><th class="num">Actualizadas</th><th class="num">Sin cambio</th></tr>
+        </thead>
+        <tbody>
+          {% for t in por_tabla_detalles %}
+          <tr>
+            <td>{{ t.nombre }}</td>
+            <td class="num">{{ t.insertadas|miles }}</td>
+            <td class="num">{{ t.actualizadas|miles }}</td>
+            <td class="num">{{ t.sin_cambio|miles }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <section class="tarjeta">
