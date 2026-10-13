@@ -78,3 +78,23 @@ Todo lo que muestran sale de la base (`ejecucion_etl`, `bitacora_cambios`, `stg_
 - **Reiniciar base** vacía hechos, cuentas, planes, cuarentena e historial (conserva `dim_tiempo`) para repetir la demostración desde cero. Pide confirmación.
 
 Las pruebas de las pantallas están en `dashboard/tests_vistas.py` y corren con `python manage.py test dashboard`.
+
+### 8. Hito 2: tablero, métricas y roles
+Desde el Hito 2 todas las pantallas piden usuario y contraseña. Después de actualizar el código:
+
+```powershell
+python manage.py migrate
+python manage.py crear_usuarios_demo --clave "una-clave-para-la-demo"
+python manage.py runserver
+```
+
+El segundo comando crea los grupos y un usuario por rol (la clave no se guarda en el repositorio):
+
+| Usuario | Rol | Qué ve |
+|---|---|---|
+| `direccion` | Dirección | Todo, incluidas las pantallas del Hito 1 y Accesos |
+| `lider_andina`, `lider_cono_sur`, `lider_mexico`, `lider_espana` | Líder de zona | Tablero, Explorar, Alertas y Métricas, solo con las cuentas de su zona |
+| `soporte` | Soporte | Tablero y Métricas, solo uso; el MRR no se consulta |
+
+Prueba del hito: entra como `direccion`, mira el MRR del Tablero, pulsa **Salir**, entra como `lider_andina` y compara: los números cambian.
+La tabla de métricas, los roles y las decisiones están en `docs/hito2.md`.

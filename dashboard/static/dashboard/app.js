@@ -169,3 +169,15 @@
   var consolaInicial = document.getElementById("consola");
   if (consolaInicial) consolaInicial.scrollTop = consolaInicial.scrollHeight;
 })();
+
+/* Hito 2: los filtros se aplican al cambiar, sin botón. */
+(function () {
+  "use strict";
+  document.addEventListener("change", function (evento) {
+    var form = evento.target.closest ? evento.target.closest("form[data-auto]") : null;
+    if (!form) return;
+    // No enviar campos vacíos: la URL queda limpia (?plan=3 en vez de ?zona=&plan=3&anio=).
+    Array.prototype.forEach.call(form.elements, function (el) { if (el.name && !el.value) el.disabled = true; });
+    form.submit();
+  });
+})();

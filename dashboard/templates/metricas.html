@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block titulo %}Métricas{% endblock %}
+{% block encabezado %}Tabla de métricas{% endblock %}
+{% block subtitulo %}NovaApp Insights · Hito 2 · Lo funcional (E10){% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 2 · E8 · Tabla de métricas</span>
+  <p>Mínimo seis indicadores calculados, no guardados. Al menos uno usa un filtro modificado y otro compara contra
+     un periodo anterior. Cada uno dice qué mide en palabras de negocio y qué decisión apoya.</p>
+</aside>
+
+{% include "_filtros.html" %}
+
+<section class="tarjeta">
+  <h2>Indicadores del sistema</h2>
+  <p class="sub">Se calculan en cada consulta sobre la base{% if mes %}; valores al último mes con datos ({{ mes }}){% endif %}, con el alcance de su rol</p>
+  <div class="tabla-envoltura">
+    <table class="tabla metricas">
+      <thead>
+        <tr><th>Indicador</th><th>Fórmula</th><th>Qué mide</th><th>Qué decisión apoya</th><th class="num">Valor ahora</th></tr>
+      </thead>
+      <tbody>
+        {% for f in fichas %}
+          <tr>
+            <td><strong>{{ f.nombre }}</strong><small class="etiqueta {% if 'Filtro' in f.tipo or 'periodo' in f.tipo %}ambar{% else %}neutro{% endif %}">{{ f.tipo }}</small></td>
+            <td class="mono formula">{{ f.formula }}</td>
+            <td>{{ f.mide }}</td>
+            <td>{{ f.decision }}</td>
+            <td class="num">{{ f.valor }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="pie">Las fórmulas están en <code>dashboard/metricas.py</code>; esta tabla se arma con esas mismas definiciones.</p>
+</section>
+{% endblock %}

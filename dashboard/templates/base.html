@@ -13,7 +13,7 @@
 </head>
 <body>
 <div class="app">
-
+  {% with p=request.perfil.pantallas %}
   <aside class="lateral">
     <div class="lateral-fijo">
     <div class="marca">
@@ -21,6 +21,7 @@
       <span>Proyecto integrador · 251G8F</span>
     </div>
     <nav class="menu" aria-label="Secciones">
+      {% if 'carga' in p %}
       <div class="menu-grupo"><span>Hito 1 · Los datos</span><span>E5</span></div>
       <a href="{% url 'dashboard:carga' %}" class="menu-item{% if pagina == 'carga' %} activo{% endif %}"{% if pagina == 'carga' %} aria-current="page"{% endif %}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 17v2h14v-2"/></svg>
@@ -38,18 +39,53 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><circle cx="5" cy="5.5" r="2"/><circle cx="19" cy="5.5" r="2"/><circle cx="5" cy="18.5" r="2"/><circle cx="19" cy="18.5" r="2"/><path d="m6.5 7 3.8 3.5M17.5 7l-3.8 3.5M6.5 17l3.8-3.5m7.2 3.5-3.8-3.5"/></svg>
         Modelo
       </a>
+      {% endif %}
+
+      <div class="menu-grupo"><span>Hito 2 · Lo funcional</span><span>E10</span></div>
+      {% if 'tablero' in p %}
+      <a href="{% url 'dashboard:tablero' %}" class="menu-item{% if pagina == 'tablero' %} activo{% endif %}"{% if pagina == 'tablero' %} aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>
+        Tablero
+      </a>
+      {% endif %}
+      {% if 'explorar' in p %}
+      <a href="{% url 'dashboard:explorar' %}" class="menu-item{% if pagina == 'explorar' %} activo{% endif %}"{% if pagina == 'explorar' %} aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        Explorar
+      </a>
+      {% endif %}
+      {% if 'alertas' in p %}
+      <a href="{% url 'dashboard:alertas' %}" class="menu-item{% if pagina == 'alertas' %} activo{% endif %}"{% if pagina == 'alertas' %} aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 3 19.5h18z"/><path d="M12 10v4.5M12 17v.5"/></svg>
+        Alertas
+      </a>
+      {% endif %}
+      {% if 'metricas' in p %}
+      <a href="{% url 'dashboard:metricas' %}" class="menu-item{% if pagina == 'metricas' %} activo{% endif %}"{% if pagina == 'metricas' %} aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11m5 8V5m5 14v-6m5 6V8"/></svg>
+        Métricas
+      </a>
+      {% endif %}
+      {% if 'accesos' in p %}
+      <a href="{% url 'dashboard:accesos' %}" class="menu-item{% if pagina == 'accesos' %} activo{% endif %}"{% if pagina == 'accesos' %} aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.5"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0M16 11.5l2 2 3.5-4"/></svg>
+        Accesos
+      </a>
+      {% endif %}
     </nav>
     </div>
   </aside>
+  {% endwith %}
 
   <div class="principal">
     <header class="barra">
       <div class="barra-titulo">
         <h1>{% block encabezado %}{% endblock %}</h1>
-        <p>NovaApp Insights · Hito 1 · Los datos (E5)</p>
+        <p>{% block subtitulo %}NovaApp Insights · Hito 1 · Los datos (E5){% endblock %}</p>
       </div>
       <div class="barra-controles">
-        {% if ultima %}
+        {% if ocultar_estado %}
+        {% elif ultima %}
           <span class="estado-carga" title="Lo que muestra esta pantalla sale de esta ejecución">
             <i></i>Ejecución #{{ ultima_numero }} · {{ ultima_fecha|date:"d/m/Y H:i" }}
           </span>
@@ -60,6 +96,16 @@
           <input type="checkbox" id="ver-notas" checked>
           Notas del curso
         </label>
+        {% if request.user.is_authenticated %}
+          <form method="post" action="{% url 'dashboard:salir' %}" class="sesion">
+            {% csrf_token %}
+            <span class="sesion-usuario" title="Usuario conectado">
+              <strong>{{ request.user.get_username }}</strong>
+              <small>{{ request.perfil.etiqueta|default:"Sin rol" }}</small>
+            </span>
+            <button type="submit" class="boton chico">Salir</button>
+          </form>
+        {% endif %}
       </div>
     </header>
 

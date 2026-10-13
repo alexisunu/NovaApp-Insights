@@ -361,3 +361,125 @@ p.vacio { margin-top: 14px; }
   .pasos.corriendo .paso-barra i { animation: none; width: 100%; opacity: 0.5; }
   .pasos.completando .paso.listo .paso-barra i { animation: none; }
 }
+
+/* ═════════════ Hito 2 ═════════════ */
+
+.boton.chico { padding: 5px 12px; font-size: 13px; }
+.boton.ancho { width: 100%; justify-content: center; padding: 10px 15px; }
+
+.sesion { display: flex; align-items: center; gap: 10px; margin: 0; }
+.sesion-usuario { display: flex; flex-direction: column; line-height: 1.25; text-align: right; }
+.sesion-usuario strong { font-size: 13.5px; }
+.sesion-usuario small { font-size: 12px; color: var(--tenue); }
+
+.mensaje { padding: 10px 14px; border-radius: 8px; font-size: 14px; border-left: 3px solid; margin: 12px 0 0; }
+.mensaje.error { background: rgba(239, 111, 100, 0.1); color: #ff8a7d; border-color: var(--coral); }
+.mensaje.success { background: rgba(79, 194, 119, 0.1); color: #5fd08a; border-color: var(--verde); }
+
+/* segmentación */
+.filtros {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px;
+  padding: 14px 18px;
+  background: var(--superficie); border: 1px solid var(--borde-suave); border-radius: var(--radio);
+}
+.filtro { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.filtro span { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tenue); }
+.filtro select {
+  padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--borde); background: var(--fondo); color: var(--texto);
+  font: 14px var(--sans);
+}
+.filtro select:disabled { color: var(--texto-2); opacity: 0.85; }
+.filtros-limpiar { font-size: 13.5px; color: var(--teal-claro); padding-bottom: 8px; }
+
+.indicadores.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.indicador-detalle.mal { color: var(--coral); }
+.indicador-detalle.bien { color: var(--verde); }
+
+/* gráficos SVG */
+.grafico-envoltura { margin-top: 12px; overflow-x: auto; }
+.grafico { display: block; width: 100%; min-width: 520px; height: auto; }
+.grafico .g-rejilla { stroke: var(--borde-suave); stroke-width: 1; }
+.grafico .g-eje { fill: var(--tenue); font: 10px var(--sans); }
+.grafico .g-area { fill: rgba(39, 181, 193, 0.13); }
+.grafico .g-linea { fill: none; stroke: var(--teal-claro); stroke-width: 2; stroke-linejoin: round; }
+.grafico .g-punto-max { fill: var(--ambar); stroke: var(--superficie); stroke-width: 2; }
+.grafico .g-punto-ult { fill: var(--teal-claro); stroke: var(--superficie); stroke-width: 2; }
+.grafico .g-zona { fill: transparent; }
+.grafico .g-zona:hover { fill: rgba(255, 255, 255, 0.05); }
+.grafico .g-barra { fill: var(--lila); }
+.grafico .g-barra:hover { fill: #b3c1f2; }
+.grafico .g-barra.alerta { fill: var(--coral); }
+.leyenda-grafico { margin-top: 8px; font-size: 12.5px; color: var(--tenue); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.leyenda-grafico i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.leyenda-grafico .punto-max { background: var(--ambar); }
+.leyenda-grafico .punto-ult { background: var(--teal-claro); margin-left: 8px; }
+
+/* variantes de barras horizontales */
+.barras.teal .barras-pista i { background: var(--teal-claro); }
+.barras.lila .barras-pista i { background: #b8a6ee; }
+.barras.tenue .barras-pista i { background: #343b52; }
+.barras.destaca-ambar .barras-pista i.destacado { background: var(--ambar); }
+.barras.destaca-teal .barras-pista i.destacado { background: var(--teal-claro); }
+
+/* control segmentado (Explorar) */
+.segmentado {
+  display: inline-flex; flex-wrap: wrap; margin-top: 12px;
+  border: 1px solid var(--borde); border-radius: 9px; overflow: hidden;
+}
+.segmentado a {
+  padding: 8px 16px; font-size: 14px; font-weight: 600;
+  color: var(--texto-2); text-decoration: none;
+}
+.segmentado a + a { border-left: 1px solid var(--borde-suave); }
+.segmentado a:hover { background: var(--superficie-2); color: var(--texto); }
+.segmentado a.activo { background: var(--lila); color: #0d1430; }
+
+/* alertas */
+.alertas { display: flex; flex-direction: column; gap: 14px; }
+.alerta {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 24px; align-items: center;
+  padding: 18px 22px;
+  background: var(--superficie); border: 1px solid var(--borde-suave); border-left: 4px solid var(--tenue);
+  border-radius: var(--radio);
+}
+.alerta h2 { font: 700 16.5px/1.3 var(--sans); }
+.alerta p { margin-top: 4px; font-size: 14.5px; color: var(--texto-2); max-width: 80ch; }
+.alerta.rojo { border-left-color: var(--coral); }
+.alerta.ambar { border-left-color: var(--ambar); }
+.alerta.teal { border-left-color: var(--teal-claro); }
+.alerta-tipo { font: 700 14px var(--mono); color: var(--texto); white-space: nowrap; }
+
+/* tabla de métricas y accesos */
+.tabla.metricas td { min-width: 150px; }
+.tabla.metricas td:first-child { min-width: 190px; }
+.tabla.metricas small.etiqueta { display: table; margin-top: 6px; font-size: 11.5px; }
+.tabla .formula { font-size: 12.5px; color: var(--texto-2); min-width: 220px; }
+.etiqueta.neutro { background: var(--superficie-2); color: var(--texto-2); }
+.fila-total td { font-weight: 700; border-top: 1px solid var(--borde); }
+.consola.registro { font-size: 12.5px; max-height: 360px; }
+.tarjeta.advertencia { border-color: #5a2a26; }
+.lista { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; color: var(--texto-2); max-width: 95ch; }
+
+/* inicio de sesión */
+.pagina-entrar { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.entrar { width: 100%; max-width: 400px; }
+.entrar .marca { padding: 0 4px 18px; }
+.entrar-tarjeta { display: flex; flex-direction: column; gap: 14px; padding: 26px 24px; }
+.entrar-tarjeta h1 { font: 700 24px/1.2 var(--serif); }
+.campo { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--texto-2); }
+.campo input {
+  padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--borde); background: var(--fondo); color: var(--texto);
+  font: 15px var(--sans);
+}
+.campo input:focus { outline: 2px solid var(--lila); outline-offset: 1px; border-color: transparent; }
+
+@media (max-width: 1080px) {
+  .indicadores.tres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 780px) {
+  .sesion-usuario { text-align: left; }
+  .alerta { grid-template-columns: 1fr; }
+  .filtro { min-width: 0; flex: 1 1 130px; }
+}

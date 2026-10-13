@@ -3,6 +3,8 @@ y muestran la evidencia de la doble ejecución."""
 import os
 from unittest import mock
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
@@ -46,7 +48,16 @@ def cargar_falsos():
                   duplicadas_eliminadas=2)
 
 
-class PantallasVaciasTest(TestCase):
+class ConSesion(TestCase):
+    """Desde el Hito 2 todas las pantallas exigen sesión: estas pruebas entran como Dirección."""
+
+    def setUp(self):
+        usuario = get_user_model().objects.create_user("direccion_prueba", password="clave-de-prueba-123")
+        usuario.groups.add(Group.objects.get_or_create(name="Dirección")[0])
+        self.client.force_login(usuario)
+
+
+class PantallasVaciasTest(ConSesion):
     def test_responden_sin_cargas(self):
         for nombre in PAGINAS:
             with self.subTest(pagina=nombre):
@@ -60,8 +71,9 @@ class PantallasVaciasTest(TestCase):
         self.assertContains(respuesta, "(esperando…)")
 
 
-class PantallasConDatosTest(TestCase):
+class PantallasConDatosTest(ConSesion):
     def setUp(self):
+        super().setUp()
         cargar_falsos()
         cargar_falsos()  # segunda ejecución: no debe duplicar
 
@@ -98,7 +110,7 @@ class PantallasConDatosTest(TestCase):
 from django.core.files.uploadedfile import SimpleUploadedFile
 import pandas as pd
 
-class AccionesDeCargaTest(TestCase):
+class AccionesDeCargaTest(ConSesion):
     def test_solo_aceptan_post(self):
         self.assertEqual(self.client.get(reverse("dashboard:ejecutar_carga")).status_code, 405)
         self.assertEqual(self.client.get(reverse("dashboard:reiniciar_base")).status_code, 405)
@@ -129,7 +141,7 @@ class AccionesDeCargaTest(TestCase):
         mensajes = [m.message for m in get_messages(respuesta.wsgi_request)]
         self.assertIn("El archivo Excel debe tener extensión .xlsx.", mensajes)
 
-    @mock.patch("dashboard.views.ejecutar_pipeline")
+    @mock.patch("dashboard.orquestador.ejecutar_pipeline")
     def test_post_excel_y_csv_validos(self, mock_ejecutar):
         mock_ejecutar.return_value = (EjecucionETL(id=99), None)
         excel_content = b"PK\x03\x04"  # valid enough to pass extension and size
@@ -153,7 +165,7 @@ class AccionesDeCargaTest(TestCase):
         self.assertFalse(os.path.exists(args[0]))
         self.assertFalse(os.path.exists(args[1]))
 
-    @mock.patch("dashboard.views.ejecutar_pipeline")
+    @mock.patch("dashboard.orquestador.ejecutar_pipeline")
     def test_post_solo_excel(self, mock_ejecutar):
         mock_ejecutar.return_value = (EjecucionETL(id=99), None)
         
@@ -182,7 +194,7 @@ class AccionesDeCargaTest(TestCase):
         self.assertFalse(os.path.exists(args[0]))
         self.assertFalse(os.path.exists(args[1]))
 
-    @mock.patch("dashboard.views.ejecutar_pipeline")
+    @mock.patch("dashboard.orquestador.ejecutar_pipeline")
     def test_excel_y_csv_ignora_fact_uso_de_excel(self, mock_ejecutar):
         mock_ejecutar.return_value = (EjecucionETL(id=99), None)
         import io
@@ -222,17 +234,18 @@ class AccionesDeCargaTest(TestCase):
         if not free_plan:
             free_plan = DimPlan.objects.create(plan_id=999, nombre_plan="Free", precio_mensual=0, limite_usuarios=1)
         
-        cuenta = DimCuenta.objects.first()
-        tiempo = DimTiempo.objects.first()
+        # Cuenta sin suscripciones y dos meses distintos: (cuenta, mes) es único en la tabla.
+        cuenta = DimCuenta.objects.exclude(factsuscripciones__isnull=False).first()
+        mes_1, mes_2 = DimTiempo.objects.filter(dia=1).order_by("fecha_id")[:2]
         
         # Corregido
         FactSuscripciones.objects.create(
-            sub_id=9001, cuenta=cuenta, fecha=tiempo, plan=free_plan,
+            sub_id=9001, cuenta=cuenta, fecha=mes_1, plan=free_plan,
             mrr=0, mrr_corregido=True
         )
         # Legítimo
         FactSuscripciones.objects.create(
-            sub_id=9002, cuenta=cuenta, fecha=tiempo, plan=free_plan,
+            sub_id=9002, cuenta=cuenta, fecha=mes_2, plan=free_plan,
             mrr=0, mrr_corregido=False
         )
         

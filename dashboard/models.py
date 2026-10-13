@@ -144,3 +144,18 @@ class BitacoraCambios(models.Model):
     class Meta:
         db_table = "bitacora_cambios"
         ordering = ["-fecha_hora"]
+
+
+# ───────────── CONTROL DE ACCESO (Hito 2) ─────────────
+
+class RegistroAcceso(models.Model):
+    """Quién entró a qué pantalla, con qué rol y con qué filtro de datos."""
+    fecha_hora = models.DateTimeField(auto_now_add=True)
+    usuario = models.CharField(max_length=150)
+    rol = models.CharField(max_length=50)
+    zona = models.CharField(max_length=100, blank=True, default="")
+    pantalla = models.CharField(max_length=50)
+
+    class Meta:
+        db_table = "registro_acceso"
+        ordering = ["-fecha_hora"]
