@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block titulo %}Explorar{% endblock %}
+{% block encabezado %}Explorar{% endblock %}
+{% block subtitulo %}NovaApp Insights · Hito 2 · Lo funcional (E10){% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 2 · E7–E8</span>
+  <p>Del total al plan. En NovaApp hay dos tablas de hechos (suscripciones y uso) que comparten la dimensión
+     cuenta: dimensiones conformadas.</p>
+</aside>
+
+{% include "_filtros.html" with sin_plan=True %}
+
+{% if not elegido %}
+  <section class="tarjeta"><p class="vacio">No hay datos para mostrar todavía.</p></section>
+{% else %}
+<section class="tarjeta">
+  <h2>Plan</h2>
+  <p class="sub">Elija un plan</p>
+  <nav class="segmentado" aria-label="Plan">
+    {% for p in planes_datos %}
+      <a href="?plan={{ p.plan_id }}{% if controles.zona and not controles.zona_fija %}&zona={{ controles.zona|urlencode }}{% endif %}{% if controles.anio %}&anio={{ controles.anio }}{% endif %}"
+         class="{% if p.plan_id == elegido.plan_id %}activo{% endif %}"{% if p.plan_id == elegido.plan_id %} aria-current="true"{% endif %}>{{ p.nombre }}</a>
+    {% endfor %}
+  </nav>
+</section>
+
+<div class="indicadores">
+  {% for t in tarjetas %}
+    <div class="indicador">
+      <div class="indicador-nombre">{{ t.nombre }}</div>
+      <div class="indicador-valor">{{ t.valor }}</div>
+      <div class="indicador-detalle">{{ t.detalle }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="rejilla dos">
+  <section class="tarjeta">
+    <h2>Cancelación por plan</h2>
+    <p class="sub">{{ cancelacion_sub }}</p>
+    {% include "_barras.html" with filas=cancelacion clase="tenue destaca-ambar" %}
+  </section>
+  <section class="tarjeta">
+    <h2>Cuentas por plan</h2>
+    <p class="sub">Cuentas distintas que tuvieron cada plan</p>
+    {% include "_barras.html" with filas=cuentas clase="tenue destaca-teal" %}
+  </section>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+{# Segmentación (E9): se envía por GET; la zona de un líder la fija el servidor. #}
+<form class="filtros" method="get" data-auto>
+  <label class="filtro">
+    <span>Zona</span>
+    {% if controles.zona_fija %}
+      <select disabled title="Su rol solo ve esta zona"><option>{{ controles.zona }} (su rol)</option></select>
+    {% else %}
+      <select name="zona">
+        <option value="">Todas</option>
+        {% for z in controles.zonas %}<option value="{{ z }}"{% if z == controles.zona %} selected{% endif %}>{{ z }}</option>{% endfor %}
+      </select>
+    {% endif %}
+  </label>
+  {% if not sin_plan %}
+  <label class="filtro">
+    <span>Plan</span>
+    <select name="plan">
+      <option value="">Todos</option>
+      {% for p in controles.planes %}<option value="{{ p.plan_id }}"{% if p.plan_id == controles.plan_id %} selected{% endif %}>{{ p.nombre_plan }}</option>{% endfor %}
+    </select>
+  </label>
+  {% elif controles.plan_id %}
+    <input type="hidden" name="plan" value="{{ controles.plan_id }}">
+  {% endif %}
+  <label class="filtro">
+    <span>Año</span>
+    <select name="anio">
+      <option value="">2022–2025</option>
+      {% for a in controles.anios %}<option value="{{ a }}"{% if a == controles.anio %} selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </label>
+  <noscript><button type="submit" class="boton chico">Aplicar</button></noscript>
+  {% if controles.zona and not controles.zona_fija or controles.plan_id and not sin_plan or controles.anio %}
+    <a class="filtros-limpiar" href="?">Quitar filtros</a>
+  {% endif %}
+</form>

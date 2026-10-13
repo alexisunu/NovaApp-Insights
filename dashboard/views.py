@@ -30,6 +30,7 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.utils.text import get_valid_filename
 
+from .acceso import requiere
 from .contexto import FKS, contexto_modelo
 from .models import (
     BitacoraCambios,
@@ -274,6 +275,7 @@ def _no_cargadas(bitacora):
     return filas
 
 
+@requiere("carga")
 def carga(request):
     ctx = _base("carga")
     ultima = ctx["ultima"]
@@ -305,6 +307,7 @@ def carga(request):
     return render(request, "carga.html", ctx)
 
 
+@requiere("carga")
 @require_POST
 def ejecutar_carga(request):
     if not _carga_en_curso.acquire(blocking=False):
@@ -369,6 +372,7 @@ def ejecutar_carga(request):
                         
                     base_excel = get_valid_filename(os.path.splitext(archivo_excel.name)[0])
                     fd, csv_temp = tempfile.mkstemp(suffix="_fact_uso.csv", prefix=base_excel + "_")
+                    os.close(fd)  # en Windows un archivo abierto no se puede borrar después
                     df[hoja_fact_uso].to_csv(csv_temp, index=False, encoding='utf-8')
                 except Exception as e:
                     messages.error(request, f"revisa que el Excel tenga las hojas indicadas.")
@@ -401,6 +405,7 @@ def ejecutar_carga(request):
                 pass
 
 
+@requiere("carga")
 @require_POST
 def reiniciar_base(request):
     """Deja la base como recién migrada (conserva dim_tiempo) para repetir la demostración."""
@@ -452,6 +457,7 @@ def _mapeos(bitacora):
     return tarjetas
 
 
+@requiere("calidad")
 def calidad(request):
     ctx = _base("calidad")
     ultima = ctx["ultima"]
@@ -515,6 +521,7 @@ def _medir_k(columnas, meta):
     }
 
 
+@requiere("privacidad")
 def privacidad(request):
     ctx = _base("privacidad")
     resumen = _privacidad_de(ctx["ultima"])
@@ -630,6 +637,7 @@ def _diagrama(filas_por_tabla, modelos):
             "alto": alto_lienzo}
 
 
+@requiere("modelo")
 def modelo(request):
     ctx = _base("modelo")
     estrella = contexto_modelo()  # lo entrega la capa de datos (dashboard/contexto.py)

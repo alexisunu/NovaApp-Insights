@@ -187,7 +187,7 @@
   {% if messages %}
     <div class="mensajes">
       {% for message in messages %}
-        <div class="mensaje {{ message.tags }}" style="padding: 12px; margin-bottom: 15px; border-radius: var(--radio); font-size: 14px; background: rgba(239, 111, 100, 0.1); color: var(--coral); border-left: 3px solid var(--coral);">{{ message }}</div>
+        <div class="mensaje {{ message.tags }}">{{ message }}</div>
       {% endfor %}
     </div>
   {% endif %}

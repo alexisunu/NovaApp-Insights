@@ -1,0 +1,9 @@
+{# Barras horizontales: una sola serie, un solo color; el destacado usa un segundo tono. #}
+<div class="barras {{ clase|default:'' }}">
+  {% for b in filas %}
+    <div class="barras-nombre">{{ b.nombre }}</div>
+    <div class="barras-pista" title="{{ b.nombre }}: {{ b.texto }}"><i class="{% if b.destacado %}destacado{% endif %}" style="width: {{ b.ancho }}%"></i><span>{{ b.texto }}</span></div>
+  {% empty %}
+    <p class="vacio">Sin datos para este filtro.</p>
+  {% endfor %}
+</div>

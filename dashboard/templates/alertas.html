@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block titulo %}Alertas{% endblock %}
+{% block encabezado %}Alertas{% endblock %}
+{% block subtitulo %}NovaApp Insights · Hito 2 · Lo funcional (E10){% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 2 · E11</span>
+  <p>El sistema avisa solo cuando un mes se sale de lo normal (|z| &gt; 2). Pero una alerta es una pregunta, no una
+     conclusión: con 48 meses y varios indicadores, algunas alertas saldrán por azar.</p>
+</aside>
+
+{% include "_filtros.html" with sin_plan=True %}
+
+<section class="tarjeta">
+  <h2>Eventos de uso por día, mes a mes</h2>
+  <p class="sub">Promedio diario de cada mes, para que febrero no parezca una caída.
+    {% if hay_atipicos %}En rojo, los meses que dispararon la alerta.{% else %}Ningún mes se sale de lo normal.{% endif %}</p>
+  <div class="grafico-envoltura">{{ svg }}</div>
+</section>
+
+<div class="alertas">
+  {% for a in alertas %}
+    <article class="alerta {{ a.color }}">
+      <div>
+        <h2>{{ a.titulo }}</h2>
+        <p>{{ a.texto }}</p>
+      </div>
+      <span class="alerta-tipo">{{ a.tipo }}</span>
+    </article>
+  {% empty %}
+    <p class="vacio">No hay datos suficientes para evaluar alertas.</p>
+  {% endfor %}
+</div>
+{% endblock %}

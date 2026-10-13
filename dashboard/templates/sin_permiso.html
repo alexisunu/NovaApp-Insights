@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block titulo %}Sin permiso{% endblock %}
+{% block encabezado %}Sin permiso{% endblock %}
+{% block subtitulo %}NovaApp Insights{% endblock %}
+
+{% block contenido %}
+<section class="tarjeta">
+  <h2>Su rol no tiene acceso a esta pantalla</h2>
+  <p class="sub">Usuario <strong>{{ perfil.usuario }}</strong> · rol {{ perfil.etiqueta }}. El servidor respondió 403: la pantalla no se calculó.</p>
+  {% if perfil.inicio %}
+    <p style="margin-top:14px"><a class="boton" href="{% url 'dashboard:inicio' %}">Ir a mi primera pantalla</a></p>
+  {% else %}
+    <p class="pie">Pida a Dirección que le asigne un grupo (Dirección, Soporte o Líder · zona).</p>
+  {% endif %}
+</section>
+{% endblock %}

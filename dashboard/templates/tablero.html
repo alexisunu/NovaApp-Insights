@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block titulo %}Tablero{% endblock %}
+{% block encabezado %}Tablero{% endblock %}
+{% block subtitulo %}NovaApp Insights · Hito 2 · Lo funcional (E10){% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 2 · E7–E9</span>
+  {% if not perfil.ver_mrr %}
+  <p>Este rol no ve el MRR: el servidor ni siquiera lo consulta. Arriba lo que se decide en tres segundos, en el medio
+     la tendencia del uso y abajo el detalle por función.</p>
+  {% else %}
+  <p>En un negocio de suscripción el indicador principal es el MRR (ingreso mensual recurrente) y su tendencia,
+     no el total acumulado. Arriba lo que se decide en tres segundos, en el medio la tendencia y abajo el detalle.
+     El plan Free aparece con MRR $0: es correcto.</p>
+  {% endif %}
+</aside>
+
+{% include "_filtros.html" %}
+
+{% if not k %}
+  <section class="tarjeta"><p class="vacio">No hay datos para mostrar todavía. Ejecute la carga en "Carga de datos".</p></section>
+{% else %}
+
+<div class="indicadores{% if tarjetas|length > 4 %} tres{% endif %}">
+  {% for t in tarjetas %}
+    <div class="indicador">
+      <div class="indicador-nombre">{{ t.nombre }}</div>
+      <div class="indicador-valor">{{ t.valor }}</div>
+      <div class="indicador-detalle {{ t.tono }}">{{ t.detalle }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<section class="tarjeta">
+  <h2>{{ tendencia.titulo }}</h2>
+  <p class="sub">{{ tendencia.hallazgo }}</p>
+  <div class="grafico-envoltura">{{ tendencia.svg }}</div>
+  {% if perfil.ver_mrr %}<p class="leyenda-grafico"><i class="punto-max"></i>máximo <i class="punto-ult"></i>último mes · pase el mouse sobre la línea para ver cada mes</p>{% endif %}
+</section>
+
+<div class="rejilla auto">
+  {% if por_plan %}
+  <section class="tarjeta">
+    <h2>MRR por plan</h2>
+    <p class="sub">Acumulado del periodo elegido</p>
+    {% include "_barras.html" with filas=por_plan %}
+    {% if nota_free %}<p class="pie">{{ nota_free }}</p>{% endif %}
+  </section>
+  <section class="tarjeta">
+    <h2>{{ por_grupo.titulo }}</h2>
+    <p class="sub">{{ por_grupo.sub }}</p>
+    {% include "_barras.html" with filas=por_grupo.filas clase="teal" %}
+  </section>
+  {% endif %}
+  <section class="tarjeta">
+    <h2>Uso por función</h2>
+    <p class="sub">Eventos del periodo{% if controles.plan_id %} · el filtro de plan no aplica al uso{% endif %}</p>
+    {% include "_barras.html" with filas=por_funcion clase="lila" %}
+  </section>
+</div>
+{% endif %}
+{% endblock %}

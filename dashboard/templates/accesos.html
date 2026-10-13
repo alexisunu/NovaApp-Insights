@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block titulo %}Accesos{% endblock %}
+{% block encabezado %}Accesos por rol{% endblock %}
+{% block subtitulo %}NovaApp Insights · Hito 2 · Lo funcional (E10){% endblock %}
+
+{% block contenido %}
+<aside class="nota">
+  <span class="nota-etiqueta">Hito 2 · E10</span>
+  <p>Seguridad por roles: cada quien ve lo que le corresponde. Entre con otro usuario y vuelva al Tablero: los
+     números cambian porque el filtro se aplica al consultar la base, no al dibujar la pantalla.</p>
+</aside>
+
+<div class="rejilla dos">
+  <section class="tarjeta">
+    <h2>Roles del sistema</h2>
+    <p class="sub">Grupos de Django: se asignan en la base de datos, no en el tablero</p>
+    <div class="tabla-envoltura">
+      <table class="tabla">
+        <thead><tr><th>Rol</th><th>Pantallas</th><th>Datos</th><th>Regla de filtro</th></tr></thead>
+        <tbody>
+          {% for r in roles %}
+            <tr><td><strong>{{ r.nombre }}</strong></td><td>{{ r.pantallas_txt }}</td><td>{{ r.datos }}</td><td class="mono">{{ r.regla }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Prueba rápida</h2>
+    <p class="sub">MRR acumulado que ve cada rol como total</p>
+    <div class="tabla-envoltura">
+      <table class="tabla">
+        <thead><tr><th>Ver como</th><th class="num">MRR acumulado</th></tr></thead>
+        <tbody>
+          {% for p in prueba %}
+            <tr{% if p.total %} class="fila-total"{% endif %}><td>{{ p.rol }}</td><td class="num">{{ p.valor }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="pie">Cada zona ve solo su parte; Dirección ve la suma.</p>
+  </section>
+</div>
+
+<div class="rejilla dos">
+  <section class="tarjeta">
+    <h2>Usuarios</h2>
+    <p class="sub">Se crean con <code>python manage.py crear_usuarios_demo --clave …</code></p>
+    <div class="tabla-envoltura">
+      <table class="tabla">
+        <thead><tr><th>Usuario</th><th>Grupo</th></tr></thead>
+        <tbody>
+          {% for u in usuarios %}
+            <tr><td class="mono">{{ u.usuario }}</td><td>{{ u.grupo }}{% if not u.activo %} <span class="etiqueta rojo">inactivo</span>{% endif %}</td></tr>
+          {% empty %}
+            <tr><td colspan="2" class="vacio">Todavía no hay usuarios con rol.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Registro de accesos</h2>
+    <p class="sub">Quién entró y qué vio (últimos 20)</p>
+    <pre class="consola registro">{% for r in registro %}{{ r.hora|date:"d/m H:i" }}  {{ r.usuario|ljust:"14" }} {{ r.rol }}{% if r.zona %} · {{ r.zona }}{% endif %}  →  {{ r.pantalla }}
+{% empty %}(sin registros todavía){% endfor %}</pre>
+  </section>
+</div>
+
+<section class="tarjeta advertencia">
+  <h2>Qué NO protege esta implementación</h2>
+  <p class="sub">Declaración honesta (E10)</p>
+  <ul class="lista">
+    <li>El filtro vive en la aplicación. Quien entre directo a PostgreSQL, o con el usuario de la base, ve todas las filas.</li>
+    <li>Lo que un líder ve en pantalla lo puede copiar, imprimir o enviar por correo: el rol no controla lo que pasa después.</li>
+    <li>Los superusuarios de Django y el panel <code>/admin</code> ven todo; no deben usarse para la operación diaria.</li>
+    <li>El servidor de desarrollo no usa HTTPS: en una red compartida la sesión podría interceptarse.</li>
+    <li>Los usuarios de demostración comparten una misma clave; en producción cada persona tendría la suya.</li>
+    <li>Soporte no ve el MRR, pero sí cuántas cuentas hay y cuánto usan, de lo que se puede intuir el tamaño del negocio.</li>
+  </ul>
+</section>
+{% endblock %}
