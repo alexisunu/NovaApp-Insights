@@ -106,32 +106,48 @@ def aplicar_anonimato(df_cuenta: pd.DataFrame) -> Tuple[pd.DataFrame, ReportePri
         lambda x: hmac.new(clave_nit, x.encode('utf-8'), hashlib.sha256).hexdigest() if pd.notnull(x) and x != '' and x != 'nan' else np.nan
     )
 
-    # GENERALIZACIÓN
-    df_seguro['pais'] = normalizar_texto(df_seguro['pais'])
-    zonas = {
-        'mexico': 'México',
-        'colombia': 'Andina', 'ecuador': 'Andina', 'peru': 'Andina',
-        'argentina': 'Cono Sur', 'chile': 'Cono Sur', 'uruguay': 'Cono Sur',
-        'espana': 'España'
+    # GENERALIZACIÓN Y DERIVACIÓN DE ZONA
+    zonas_canonicas = {
+        'México': 'México',
+        'Colombia': 'Andina', 'Ecuador': 'Andina', 'Perú': 'Andina',
+        'Argentina': 'Cono Sur', 'Chile': 'Cono Sur', 'Uruguay': 'Cono Sur',
+        'España': 'España'
     }
-    df_seguro['zona'] = df_seguro['pais'].map(lambda x: zonas.get(x, 'Otros') if pd.notnull(x) else np.nan)
+
+    def _derivar_zona(p):
+        if pd.isna(p):
+            return np.nan
+        if p in zonas_canonicas:
+            return zonas_canonicas[p]
+        p_norm = ''.join(c for c in unicodedata.normalize('NFD', str(p)) if unicodedata.category(c) != 'Mn').strip().lower()
+        zonas_norm = {
+            'mexico': 'México',
+            'colombia': 'Andina', 'ecuador': 'Andina', 'peru': 'Andina',
+            'argentina': 'Cono Sur', 'chile': 'Cono Sur', 'uruguay': 'Cono Sur',
+            'espana': 'España'
+        }
+        return zonas_norm.get(p_norm, 'Otros')
+
+    # Conservamos pais normalizado tal como llega del cleaner
+    df_seguro['pais'] = df_seguro['pais'].astype(str).str.strip()
+    df_seguro['zona'] = df_seguro['pais'].apply(_derivar_zona)
 
     # Conservamos los textos originales pero quitamos espacios sobrantes
     for col in ['industria', 'canal_adquisicion']:
         if df_seguro[col].dtype == 'object' or df_seguro[col].dtype == 'string':
             df_seguro[col] = df_seguro[col].astype(str).str.strip()
 
-    # PRUEBA K DESPUÉS
-    cuasi_finales = ['zona', 'industria', 'canal_adquisicion']
+    # PRUEBA K DESPUÉS (cuasi-identificadores: pais, industria, canal_adquisicion)
+    cuasi_finales = ['pais', 'industria', 'canal_adquisicion']
     df_temp_final = df_seguro.copy()
-    for col in ['industria', 'canal_adquisicion']:
+    for col in cuasi_finales:
         df_temp_final[col] = normalizar_texto(df_temp_final[col])
-        
+
     grupos_despues = df_temp_final.groupby(cuasi_finales, dropna=False).size()
     k_despues = int(grupos_despues.min())
     pct_cuentas_riesgo_despues = float((grupos_despues[grupos_despues < 5].sum() / len(df_seguro)) * 100)
     grupos_finales_5_9 = int(((grupos_despues >= 5) & (grupos_despues <= 9)).sum())
-    
+
     combinaciones_riesgo = []
     riesgo = grupos_despues[grupos_despues < 5]
     for idx, val in riesgo.items():
@@ -140,13 +156,13 @@ def aplicar_anonimato(df_cuenta: pd.DataFrame) -> Tuple[pd.DataFrame, ReportePri
     k_meta = 5
     cumple_k = bool(k_despues >= k_meta)
 
-    # LISTA BLANCA Y VERIFICACIÓN
-    columnas_permitidas = ['cuenta_id', 'nit_hash', 'zona', 'industria', 'canal_adquisicion', 'fecha_registro_inconsistente']
-            
+    # LISTA BLANCA Y VERIFICACIÓN (7 columnas en orden exacto)
+    columnas_permitidas = ['cuenta_id', 'nit_hash', 'pais', 'zona', 'industria', 'canal_adquisicion', 'fecha_registro_inconsistente']
+
     df_seguro = df_seguro[columnas_permitidas]
 
-    # Verificar que no queden datos personales accidentalmente (nombres de columnas PII)
-    pii_prohibidas = ['nombre_cuenta', 'contacto_admin', 'email_admin', 'nit', 'pais', 'fecha_registro', 'plan_inicial_id']
+    # Verificar que no queden datos personales accidentalmente (pais ya no es prohibida)
+    pii_prohibidas = ['nombre_cuenta', 'contacto_admin', 'email_admin', 'nit', 'fecha_registro', 'plan_inicial_id']
     for pii in pii_prohibidas:
         if pii in df_seguro.columns:
             raise ValueError(f"Error crítico: Columna PII {pii} no fue eliminada.")
@@ -158,7 +174,8 @@ def aplicar_anonimato(df_cuenta: pd.DataFrame) -> Tuple[pd.DataFrame, ReportePri
         {'columna': 'email_admin', 'clase': 'identificador directo', 'tratamiento': 'eliminada', 'criterio': 'Riesgo alto de re-identificación'},
         {'columna': 'nit', 'clase': 'identificador directo', 'tratamiento': 'seudonimizada', 'criterio': 'HMAC-SHA256 para prevenir re-identificación'},
         {'columna': 'cuenta_id', 'clase': 'identificador interno', 'tratamiento': 'conservada', 'criterio': 'Necesaria para enlazar los hechos'},
-        {'columna': 'pais', 'clase': 'cuasi-identificador', 'tratamiento': 'generalizada', 'criterio': 'Generalización a zona para K-anonimato'},
+        {'columna': 'pais', 'clase': 'cuasi-identificador', 'tratamiento': 'conservada (normalizada)', 'criterio': 'Necesaria para el control de acceso por país; con país, k = 5 medido'},
+        {'columna': 'zona', 'clase': 'cuasi-identificador derivado', 'tratamiento': 'generada', 'criterio': 'Derivada de país para agregación regional'},
         {'columna': 'industria', 'clase': 'cuasi-identificador', 'tratamiento': 'conservada', 'criterio': 'Riesgo mitigado tras K-anonimato'},
         {'columna': 'canal_adquisicion', 'clase': 'cuasi-identificador', 'tratamiento': 'conservada', 'criterio': 'Riesgo mitigado tras K-anonimato'},
         {'columna': 'plan_inicial_id', 'clase': 'cuasi-identificador', 'tratamiento': 'eliminada', 'criterio': 'Removido para cumplir K-meta'},
@@ -166,10 +183,12 @@ def aplicar_anonimato(df_cuenta: pd.DataFrame) -> Tuple[pd.DataFrame, ReportePri
         {'columna': 'fecha_registro_inconsistente', 'clase': 'no sensible', 'tratamiento': 'conservada', 'criterio': 'Bandera de auditoría no identificante'}
     ]
 
+    cuentas_otros = int((df_seguro['zona'] == 'Otros').sum())
     justificacion = (
         f"Se anonimizó dim_cuenta. K_antes: {k_antes} con {pct_cuentas_riesgo_antes:.2f}% en riesgo y {cuentas_unicas_antes} cuentas únicas. "
-        f"Tras generalización y supresión, K_despues: {k_despues} con {pct_cuentas_riesgo_despues:.2f}% en riesgo. "
-        f"{'Cumple' if cumple_k else 'No cumple'} meta K={k_meta}. Grupos entre 5 y 9: {grupos_finales_5_9}."
+        f"Tras conservación de país normalizado y supresión de plan_inicial_id, K_despues: {k_despues} con {pct_cuentas_riesgo_despues:.2f}% en riesgo. "
+        f"{'Cumple' if cumple_k else 'No cumple'} meta K={k_meta}. Grupos entre 5 y 9: {grupos_finales_5_9}. "
+        f"Cuentas con país no canónico (zona 'Otros'): {cuentas_otros}."
     )
     if not cumple_k and combinaciones_riesgo:
         justificacion += f" Combinaciones en riesgo: {combinaciones_riesgo}"
@@ -192,6 +211,7 @@ def aplicar_anonimato(df_cuenta: pd.DataFrame) -> Tuple[pd.DataFrame, ReportePri
         'cuentas_unicas_antes': cuentas_unicas_antes,
         'cuasi_identificadores_originales': cuasi_originales,
         'cuasi_identificadores_finales': cuasi_finales,
+        'cuentas_zona_otros': cuentas_otros,
         'clasificacion_columnas': clasificacion
     }
 
