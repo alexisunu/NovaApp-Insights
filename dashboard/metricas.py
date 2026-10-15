@@ -18,16 +18,70 @@ from django.db.models import Count, Q, Sum
 
 from .models import DimCuenta, DimPlan, FactSuscripciones, FactUso
 
+MES_REFERENCIA = 20251201
+ANIO_REFERENCIA = 2025
+
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 PAGO = Q(plan__precio_mensual__gt=0)
 UMBRAL_Z = 2.0
 
-FICHAS = [
+FICHAS_GUIA = [
     {
-        "clave": "mrr", "nombre": "MRR del mes",
-        "formula": "SUMA(mrr) de fact_suscripciones en el último mes",
-        "mide": "Cuánto dinero entra cada mes por suscripciones.",
-        "decision": "Si el negocio crece o se encoge; base de toda proyección de caja.",
+        "clave": "mrr",
+        "nombre": "MRR dic-2025",
+        "formula": "SUMA(mrr) de fact_suscripciones en dic-2025",
+        "mide": "Ingreso mensual recurrente al cierre de 2025.",
+        "decision": "Base de proyección de flujo de caja y valoración del negocio.",
+        "tipo": "Guía",
+    },
+    {
+        "clave": "cuentas",
+        "nombre": "Cuentas activas dic-2025",
+        "formula": "CONTAR DISTINTOS(cuenta_id) con suscripción en dic-2025",
+        "mide": "Clientes activos con servicio vigente en dic-2025.",
+        "decision": "Dimensionar operaciones, soporte y metas comerciales.",
+        "tipo": "Guía",
+    },
+    {
+        "clave": "arpa",
+        "nombre": "ARPA dic-2025",
+        "formula": "MRR dic-2025 ÷ cuentas con plan pago (precio > 0) en dic-2025",
+        "mide": "Cuánto paga en promedio una cuenta que no está en plan Free.",
+        "decision": "Evaluar pricing, monetización y venta cruzada.",
+        "tipo": "Guía (excluye Free)",
+    },
+    {
+        "clave": "cancelacion",
+        "nombre": "Cancelación mensual 2025 (%)",
+        "formula": "Suscripciones de 2025 con churn verdadero ÷ suscripciones de 2025",
+        "mide": "Tasa mensual promedio de pérdida de clientes durante el año 2025.",
+        "decision": "Priorizar retención y detectar fugas de clientes por segmento.",
+        "tipo": "Guía",
+    },
+    {
+        "clave": "pct_cuentas_pago",
+        "nombre": "Cuentas pagas dic-2025 (%)",
+        "formula": "Cuentas con plan pago ÷ cuentas activas, en dic-2025",
+        "mide": "Porcentaje de clientes que pagan frente al total de activos en dic-2025.",
+        "decision": "Monitorear la efectividad de la conversión de Free a pago.",
+        "tipo": "Guía",
+    },
+    {
+        "clave": "uso_por_cuenta_mes",
+        "nombre": "Uso por cuenta-mes 2025",
+        "formula": "Eventos de uso de 2025 ÷ suscripciones de 2025",
+        "mide": "Intensidad promedio mensual de uso del software por cada suscripción.",
+        "decision": "Detectar adopción y engagement del producto frente a la facturación.",
+        "tipo": "Guía",
+    },
+]
+
+FICHAS_COMPLEMENTARIAS = [
+    {
+        "clave": "mrr_mes", "nombre": "MRR del último mes con datos",
+        "formula": "SUMA(mrr) de fact_suscripciones en el último mes registrado",
+        "mide": "Cuánto dinero entra en el mes más reciente.",
+        "decision": "Monitoreo del ingreso mensual recurrente actual.",
         "tipo": "Base",
     },
     {
@@ -38,35 +92,14 @@ FICHAS = [
         "tipo": "Contra periodo anterior",
     },
     {
-        "clave": "cuentas", "nombre": "Cuentas activas",
-        "formula": "CONTAR DISTINTOS(cuenta_id) con suscripción en el último mes",
-        "mide": "Cuántas empresas usan y pagan (o tienen plan Free) hoy.",
-        "decision": "Dimensionar soporte y metas comerciales.",
-        "tipo": "Base",
-    },
-    {
-        "clave": "cancelacion", "nombre": "Cancelación mensual",
+        "clave": "cancelacion_ult12", "nombre": "Cancelación últimos 12 meses",
         "formula": "SUMA(churn) / CONTAR(filas) de los últimos 12 meses",
-        "mide": "Qué parte de las cuentas se va cada mes, en promedio.",
-        "decision": "Quién se está yendo: priorizar retención por plan o zona.",
+        "mide": "Qué parte de las cuentas se va cada mes, en promedio móvil.",
+        "decision": "Quién se está yendo: priorizar retención por plan o país.",
         "tipo": "Base",
     },
     {
-        "clave": "arpa", "nombre": "Ingreso promedio por cuenta de pago (ARPA)",
-        "formula": "SUMA(mrr) / CONTAR DISTINTOS(cuenta_id) del último mes, FILTRANDO precio_mensual > 0",
-        "mide": "Cuánto paga en promedio una cuenta que sí paga.",
-        "decision": "Evaluar si conviene subir de plan a los clientes o cambiar precios.",
-        "tipo": "Filtro modificado (excluye Free)",
-    },
-    {
-        "clave": "uso_por_cuenta", "nombre": "Eventos de uso por cuenta activa",
-        "formula": "CONTAR(fact_uso del último mes) / Cuentas activas",
-        "mide": "Qué tanto usan el producto las cuentas que lo tienen.",
-        "decision": "Alertar cuentas que pagan pero no usan (riesgo de cancelación).",
-        "tipo": "Combina los dos hechos",
-    },
-    {
-        "clave": "sobre_limite", "nombre": "Cuentas por encima del límite de su plan",
+        "clave": "sobre_limite", "nombre": "Cuentas sobre el límite de su plan",
         "formula": "CONTAR DISTINTOS(cuenta_id con excede_limite) / Cuentas activas, último mes",
         "mide": "Clientes con más usuarios de los que su plan permite.",
         "decision": "Lista de candidatos para ofrecer un plan superior.",
@@ -74,17 +107,22 @@ FICHAS = [
     },
 ]
 
+FICHAS = FICHAS_GUIA + FICHAS_COMPLEMENTARIAS
+
 
 @dataclass
 class Filtro:
-    zona: str | None = None        # alcance del rol o segmentación elegida
+    pais: str | None = None        # alcance del rol o segmentación elegida
+    zona: str | None = None        # agrupación opcional para Dirección
     plan_id: int | None = None     # segmentación (no aplica al uso: fact_uso no tiene plan)
     anio: int | None = None
     ver_mrr: bool = True
 
     def suscripciones(self):
         qs = FactSuscripciones.objects.all()
-        if self.zona:
+        if self.pais:
+            qs = qs.filter(cuenta__pais=self.pais)
+        elif self.zona:
             qs = qs.filter(cuenta__zona=self.zona)
         if self.plan_id:
             qs = qs.filter(plan_id=self.plan_id)
@@ -94,14 +132,16 @@ class Filtro:
 
     def usos(self):
         qs = FactUso.objects.all()
-        if self.zona:
+        if self.pais:
+            qs = qs.filter(cuenta__pais=self.pais)
+        elif self.zona:
             qs = qs.filter(cuenta__zona=self.zona)
         if self.anio:
             qs = qs.filter(fecha__anio=self.anio)
         return qs
 
     def sin_plan(self):
-        return Filtro(self.zona, None, self.anio, self.ver_mrr)
+        return Filtro(pais=self.pais, zona=self.zona, plan_id=None, anio=self.anio, ver_mrr=self.ver_mrr)
 
 
 # ───────────── utilidades ─────────────
@@ -125,6 +165,10 @@ def dec(valor, cifras=1):
     return f"{valor:,.{cifras}f}".replace(",", "·").replace(".", ",").replace("·", ".")
 
 
+def paises():
+    return list(DimCuenta.objects.exclude(pais="").values_list("pais", flat=True).distinct().order_by("pais"))
+
+
 def zonas():
     return list(DimCuenta.objects.exclude(zona="").values_list("zona", flat=True).distinct().order_by("zona"))
 
@@ -135,6 +179,66 @@ def planes():
 
 def anios():
     return list(FactSuscripciones.objects.values_list("fecha__anio", flat=True).distinct().order_by("fecha__anio"))
+
+
+def indicadores_guia(f):
+    """
+    Calcula los seis indicadores de la guía para el periodo de referencia (dic-2025 y año 2025).
+    Respeta el Filtro f (país del líder, ver_mrr para soporte).
+    Si no hay datos en el periodo, devuelve None.
+
+    1. MRR dic-2025: suma del mrr de las suscripciones de dic-2025.
+    2. Cuentas activas dic-2025: cuentas distintas con suscripción en dic-2025.
+    3. ARPA dic-2025: MRR de dic-2025 ÷ cuentas distintas con plan pago (precio_mensual > 0) en dic-2025.
+    4. Cancelación mensual 2025 (%): suscripciones de 2025 con churn verdadero ÷ suscripciones de 2025.
+    5. Cuentas pagas dic-2025 (%): cuentas con plan pago ÷ cuentas activas, en dic-2025.
+    6. Uso por cuenta-mes 2025: eventos de uso de 2025 ÷ suscripciones de 2025.
+    """
+    subs_dic = f.suscripciones().filter(fecha_id=MES_REFERENCIA)
+    subs_anio = f.suscripciones().filter(fecha__anio=ANIO_REFERENCIA)
+    usos_anio = f.usos().filter(fecha__anio=ANIO_REFERENCIA)
+
+    agg_dic = subs_dic.aggregate(
+        mrr_total=Sum("mrr"),
+        cuentas=Count("cuenta_id", distinct=True),
+        mrr_pago=Sum("mrr", filter=PAGO),
+        cuentas_pago=Count("cuenta_id", filter=PAGO, distinct=True),
+    )
+    agg_anio = subs_anio.aggregate(
+        total_filas=Count("sub_id"),
+        churn_filas=Count("sub_id", filter=Q(churn=True)),
+    )
+    total_eventos_anio = usos_anio.count()
+
+    cuentas_activas = agg_dic["cuentas"] or 0
+    total_subs_anio = agg_anio["total_filas"] or 0
+
+    if cuentas_activas == 0 and total_subs_anio == 0:
+        return None
+
+    cuentas_pago = agg_dic["cuentas_pago"] or 0
+    mrr_dic = float(agg_dic["mrr_total"] or 0) if f.ver_mrr else None
+    arpa_dic = (mrr_dic / cuentas_pago) if (f.ver_mrr and cuentas_pago > 0) else None
+
+    churn_subs_anio = agg_anio["churn_filas"] or 0
+    cancelacion_2025 = (churn_subs_anio / total_subs_anio) if total_subs_anio > 0 else None
+
+    pct_pago_dic = (cuentas_pago / cuentas_activas) if cuentas_activas > 0 else None
+    uso_por_cuenta_mes = (total_eventos_anio / total_subs_anio) if total_subs_anio > 0 else None
+
+    return {
+        "mes_referencia": "dic-2025",
+        "anio_referencia": ANIO_REFERENCIA,
+        "mrr": mrr_dic,
+        "cuentas": cuentas_activas,
+        "arpa": arpa_dic,
+        "cancelacion": cancelacion_2025,
+        "cuentas_pago": cuentas_pago,
+        "pct_cuentas_pago": pct_pago_dic,
+        "uso_por_cuenta_mes": uso_por_cuenta_mes,
+        "eventos_2025": total_eventos_anio,
+        "subs_2025": total_subs_anio,
+    }
 
 
 # ───────────── series ─────────────
@@ -329,32 +433,136 @@ def alertas(f, registro_inconsistente=0):
                 "tipo": "sin alerta", "color": "teal",
             })
 
-    # 3. Meses atípicos en el uso: |z| > 2 sobre eventos por día.
+    # 3. Detección de meses atípicos en las 5 series clave (|z| > 2.0)
+    ARRANQUE = 6  # Excluir primeros 6 meses en series temporales
+
+    # Serie A: Eventos de uso por día
     if uso:
-        atipicos = meses_atipicos(uso)
-        crudos = puntajes_z([u["eventos"] for u in uso])
-        solo_calendario = sorted({u["etiqueta"][:3] for u, z in zip(uso, crudos) if abs(z) > UMBRAL_Z}
-                                 - {u["etiqueta"][:3] for u, _ in atipicos})
-        diarios = [u["por_dia"] for u in uso]
-        if atipicos:
-            plural = len(atipicos) > 1
+        # Excluir arranque si hay suficientes meses
+        uso_eval = uso[ARRANQUE:] if len(uso) > ARRANQUE else uso
+        zs_uso = puntajes_z([u["por_dia"] for u in uso_eval])
+        atipicos_uso = [(u, z) for u, z in zip(uso_eval, zs_uso) if abs(z) > UMBRAL_Z]
+        if atipicos_uso:
+            plural = len(atipicos_uso) > 1
+            meses_txt = ", ".join(f"{u['etiqueta']} ({dec(u['por_dia'])} eventos/día, z={dec(z)})" for u, z in atipicos_uso[:3])
             salida.append({
-                "titulo": f"{len(atipicos)} mes{'es' if plural else ''} atípico{'s' if plural else ''} en el uso",
-                "texto": "Se sale" + ("n" if plural else "") + " de lo normal aun comparando por día (|z| > 2): "
-                         + ", ".join(f"{u['etiqueta']} ({n(u['eventos'])} eventos, z = {dec(z)})" for u, z in atipicos[:4])
-                         + ". Es una pregunta: revisar qué pasó ese mes antes de concluir.",
-                "tipo": "atípico", "color": "rojo",
+                "titulo": f"¿Mes{'es' if plural else ''} atípico{'s' if plural else ''} en eventos de uso por día?",
+                "texto": f"¿Por qué en {meses_txt} el uso diario se desvió significativamente (|z| > 2)? Conviene revisar campañas o caídas técnicas.",
+                "tipo": "atípico", "color": "rojo", "claves": [u["clave"] for u, _ in atipicos_uso],
             })
         else:
-            texto = (f"Comparando por día, todos los meses están entre {dec(min(diarios))} y {dec(max(diarios))} "
-                     "eventos diarios. El sistema no inventa alertas.")
-            if solo_calendario:
-                texto += (f" Contando eventos totales, {', '.join(solo_calendario)} parecería bajo, pero es "
-                          "estacionalidad de calendario: tiene menos días.")
             salida.append({
-                "titulo": "Ningún mes atípico en el uso",
-                "texto": texto, "tipo": "sin alerta", "color": "teal",
+                "titulo": "Sin meses atípicos en eventos de uso por día",
+                "texto": "Todos los meses se mantienen dentro del rango de variación esperado (|z| ≤ 2).",
+                "tipo": "sin alerta", "color": "teal", "claves": [],
             })
+
+    # Serie B: MRR (variación mensual, solo si ver_mrr y excluyendo primeros 6 meses)
+    if f.ver_mrr and len(serie) > 1:
+        # Variación porcentual mensual: (mrr[i] - mrr[i-1]) / mrr[i-1]
+        variaciones_mrr = []
+        for i in range(1, len(serie)):
+            prev, curr = serie[i - 1]["mrr"], serie[i]["mrr"]
+            var = ((curr - prev) / prev) if prev > 0 else 0.0
+            variaciones_mrr.append((serie[i], var, i))
+        # Excluir arranque (meses de índice 1 a 5 inclusive, es decir los primeros 6 meses del negocio)
+        eval_mrr = [item for item in variaciones_mrr if item[2] >= ARRANQUE]
+        if len(eval_mrr) >= 3:
+            zs_mrr = puntajes_z([item[1] for item in eval_mrr])
+            atipicos_mrr = [(item[0], z, item[1]) for item, z in zip(eval_mrr, zs_mrr) if abs(z) > UMBRAL_Z]
+            if atipicos_mrr:
+                plural = len(atipicos_mrr) > 1
+                meses_txt = ", ".join(f"{s['etiqueta']} ({'+' if v>=0 else ''}{dec(v*100)}%, z={dec(z)})" for s, z, v in atipicos_mrr[:3])
+                salida.append({
+                    "titulo": f"¿Variación atípica en MRR ({len(atipicos_mrr)} mes{'es' if plural else ''})?",
+                    "texto": f"¿Por qué en {meses_txt} el MRR tuvo una variación inusual respecto a la tendencia (|z| > 2, fase post-arranque)?",
+                    "tipo": "atípico", "color": "rojo", "claves": [s["fecha_id"] // 100 for s, _, _ in atipicos_mrr],
+                })
+            else:
+                salida.append({
+                    "titulo": "Sin meses atípicos en MRR",
+                    "texto": "La variación mensual del MRR se mantiene en rangos estadísticamente esperados (|z| ≤ 2).",
+                    "tipo": "sin alerta", "color": "teal", "claves": [],
+                })
+
+    # Serie C: Cuentas activas (variación mensual, excluyendo primeros 6 meses)
+    if len(serie) > 1:
+        variaciones_cuentas = []
+        for i in range(1, len(serie)):
+            prev, curr = serie[i - 1]["cuentas"], serie[i]["cuentas"]
+            var = ((curr - prev) / prev) if prev > 0 else 0.0
+            variaciones_cuentas.append((serie[i], var, i))
+        eval_cuentas = [item for item in variaciones_cuentas if item[2] >= ARRANQUE]
+        if len(eval_cuentas) >= 3:
+            zs_cuentas = puntajes_z([item[1] for item in eval_cuentas])
+            atipicos_cuentas = [(item[0], z, item[1]) for item, z in zip(eval_cuentas, zs_cuentas) if abs(z) > UMBRAL_Z]
+            if atipicos_cuentas:
+                plural = len(atipicos_cuentas) > 1
+                meses_txt = ", ".join(f"{s['etiqueta']} ({'+' if v>=0 else ''}{dec(v*100)}%, z={dec(z)})" for s, z, v in atipicos_cuentas[:3])
+                salida.append({
+                    "titulo": f"¿Crecimiento/caída atípica de cuentas activas ({len(atipicos_cuentas)} mes{'es' if plural else ''})?",
+                    "texto": f"¿Qué impulsó la alteración de cuentas en {meses_txt} (|z| > 2)?",
+                    "tipo": "atípico", "color": "rojo", "claves": [s["fecha_id"] // 100 for s, _, _ in atipicos_cuentas],
+                })
+            else:
+                salida.append({
+                    "titulo": "Sin meses atípicos en cuentas activas",
+                    "texto": "El ritmo de altas y bajas de cuentas se mantiene estable y predecible.",
+                    "tipo": "sin alerta", "color": "teal", "claves": [],
+                })
+
+    # Serie D: Cancelación mensual (%)
+    if len(serie) >= 3:
+        churn_rates = []
+        for i, s in enumerate(serie):
+            tasa = (s["cancelaciones"] / s["filas"]) if s["filas"] > 0 else 0.0
+            churn_rates.append((s, tasa, i))
+        eval_churn = [item for item in churn_rates if item[2] >= ARRANQUE] if len(churn_rates) > ARRANQUE else churn_rates
+        if len(eval_churn) >= 3:
+            zs_churn = puntajes_z([item[1] for item in eval_churn])
+            atipicos_churn = [(item[0], z, item[1]) for item, z in zip(eval_churn, zs_churn) if abs(z) > UMBRAL_Z]
+            if atipicos_churn:
+                plural = len(atipicos_churn) > 1
+                meses_txt = ", ".join(f"{s['etiqueta']} ({dec(v*100, 2)}%, z={dec(z)})" for s, z, v in atipicos_churn[:3])
+                salida.append({
+                    "titulo": f"¿Pico atípico en cancelación mensual ({len(atipicos_churn)} mes{'es' if plural else ''})?",
+                    "texto": f"¿Por qué en {meses_txt} la tasa de cancelación mensual se disparó (|z| > 2)?",
+                    "tipo": "atípico", "color": "rojo", "claves": [s["fecha_id"] // 100 for s, _, _ in atipicos_churn],
+                })
+            else:
+                salida.append({
+                    "titulo": "Sin meses atípicos en cancelación mensual",
+                    "texto": "La tasa mensual de cancelación no muestra picos anómalos (|z| ≤ 2).",
+                    "tipo": "sin alerta", "color": "teal", "claves": [],
+                })
+
+    # Serie E: Uso por suscripción (eventos del mes ÷ suscripciones del mes)
+    if serie and uso:
+        mapa_eventos = {u["clave"]: u["eventos"] for u in uso}
+        uso_por_sub = []
+        for i, s in enumerate(serie):
+            clave_m = s["fecha_id"] // 100
+            ev = mapa_eventos.get(clave_m, 0)
+            ratio = (ev / s["filas"]) if s["filas"] > 0 else 0.0
+            uso_por_sub.append((s, ratio, i))
+        eval_uso_sub = [item for item in uso_por_sub if item[2] >= ARRANQUE] if len(uso_por_sub) > ARRANQUE else uso_por_sub
+        if len(eval_uso_sub) >= 3:
+            zs_usosub = puntajes_z([item[1] for item in eval_uso_sub])
+            atipicos_usosub = [(item[0], z, item[1]) for item, z in zip(eval_uso_sub, zs_usosub) if abs(z) > UMBRAL_Z]
+            if atipicos_usosub:
+                plural = len(atipicos_usosub) > 1
+                meses_txt = ", ".join(f"{s['etiqueta']} ({dec(v, 2)} eventos/sub, z={dec(z)})" for s, z, v in atipicos_usosub[:3])
+                salida.append({
+                    "titulo": f"¿Anomalía en uso por suscripción ({len(atipicos_usosub)} mes{'es' if plural else ''})?",
+                    "texto": f"¿Qué motivó el comportamiento de uso en {meses_txt} (|z| > 2)?",
+                    "tipo": "atípico", "color": "rojo", "claves": [s["fecha_id"] // 100 for s, _, _ in atipicos_usosub],
+                })
+            else:
+                salida.append({
+                    "titulo": "Sin meses atípicos en uso por suscripción",
+                    "texto": "La relación de eventos por cliente activo se mantiene dentro de los márgenes normales.",
+                    "tipo": "sin alerta", "color": "teal", "claves": [],
+                })
 
     # 4. Diferencias de cancelación entre planes.
     planes_ = [p for p in por_plan(f) if p["cancelacion"] is not None]

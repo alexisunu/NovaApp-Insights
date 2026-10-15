@@ -1,13 +1,13 @@
-{# Segmentación (E9): se envía por GET; la zona de un líder la fija el servidor. #}
+{# Segmentación (E9): se envía por GET; el país de un líder lo fija el servidor. #}
 <form class="filtros" method="get" data-auto>
   <label class="filtro">
-    <span>Zona</span>
-    {% if controles.zona_fija %}
-      <select disabled title="Su rol solo ve esta zona"><option>{{ controles.zona }} (su rol)</option></select>
+    <span>País</span>
+    {% if controles.pais_fijo %}
+      <select disabled title="Su rol solo ve este país"><option>{{ controles.pais }} (su rol)</option></select>
     {% else %}
-      <select name="zona">
-        <option value="">Todas</option>
-        {% for z in controles.zonas %}<option value="{{ z }}"{% if z == controles.zona %} selected{% endif %}>{{ z }}</option>{% endfor %}
+      <select name="pais">
+        <option value="">Todos</option>
+        {% for p in controles.paises %}<option value="{{ p }}"{% if p == controles.pais %} selected{% endif %}>{{ p }}</option>{% endfor %}
       </select>
     {% endif %}
   </label>
@@ -30,7 +30,7 @@
     </select>
   </label>
   <noscript><button type="submit" class="boton chico">Aplicar</button></noscript>
-  {% if controles.zona and not controles.zona_fija or controles.plan_id and not sin_plan or controles.anio %}
+  {% if controles.pais and not controles.pais_fijo or controles.plan_id and not sin_plan or controles.anio %}
     <a class="filtros-limpiar" href="?">Quitar filtros</a>
   {% endif %}
 </form>

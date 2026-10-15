@@ -31,14 +31,14 @@ ROLES = {
     "direccion": {
         "nombre": "Dirección",
         "pantallas": PANTALLAS_HITO2 + PANTALLAS_HITO1,
-        "datos": "Todas las zonas",
+        "datos": "Todos los países",
         "regla": "—",
     },
     "lider": {
-        "nombre": "Líder de zona",
+        "nombre": "Líder de país",
         "pantallas": ("tablero", "explorar", "alertas", "metricas"),
-        "datos": "Solo su zona",
-        "regla": "cuenta.zona = zona del usuario",
+        "datos": "Solo su país",
+        "regla": "cuenta.pais = país del usuario",
     },
     "soporte": {
         "nombre": "Soporte",
@@ -54,8 +54,13 @@ class Perfil:
     clave: str | None          # direccion / lider / soporte / None (sin rol)
     nombre: str
     usuario: str
-    zona: str | None = None     # solo para líderes
+    pais: str | None = None     # solo para líderes
     pantallas: tuple = field(default_factory=tuple)
+
+    @property
+    def zona(self):
+        # Compatibilidad hacia atrás
+        return self.pais
 
     @property
     def ver_mrr(self):
@@ -67,7 +72,7 @@ class Perfil:
 
     @property
     def etiqueta(self):
-        return f"{self.nombre} · {self.zona}" if self.zona else self.nombre
+        return f"{self.nombre} · {self.pais}" if self.pais else self.nombre
 
     def puede(self, pantalla):
         return pantalla in self.pantallas
@@ -82,22 +87,24 @@ def perfil_de(usuario):
     nombre_usuario = usuario.get_username()
     grupos = set(usuario.groups.values_list("name", flat=True))
     if usuario.is_superuser or GRUPO_DIRECCION in grupos:
-        clave, zona = "direccion", None
+        clave, pais = "direccion", None
     else:
         lideres = sorted(g[len(PREFIJO_LIDER):].strip() for g in grupos if g.startswith(PREFIJO_LIDER))
         if lideres:
-            clave, zona = "lider", lideres[0]
+            clave, pais = "lider", lideres[0]
         elif GRUPO_SOPORTE in grupos:
-            clave, zona = "soporte", None
+            clave, pais = "soporte", None
         else:
             return Perfil(None, "Sin rol", nombre_usuario)
     rol = ROLES[clave]
-    return Perfil(clave, rol["nombre"], nombre_usuario, zona, rol["pantallas"])
+    return Perfil(clave, rol["nombre"], nombre_usuario, pais, rol["pantallas"])
 
 
 def registrar(perfil, pantalla):
+    # Guarda el alcance en el campo zona existente (el país para Líder, "Todos" para Dirección)
+    alcance = perfil.pais if perfil.clave == "lider" else ("Todos" if perfil.clave == "direccion" else "—")
     RegistroAcceso.objects.create(
-        usuario=perfil.usuario, rol=perfil.nombre, zona=perfil.zona or "", pantalla=pantalla,
+        usuario=perfil.usuario, rol=perfil.nombre, zona=alcance, pantalla=pantalla,
     )
 
 

@@ -64,19 +64,19 @@ def _entero(texto, validos):
 
 def filtro_de(request):
     perfil = request.perfil
-    zonas = m.zonas()
+    paises = m.paises()
     if perfil.clave == "lider":
-        zona = perfil.zona  # el rol manda; lo que venga en la URL se ignora
+        pais = perfil.pais  # el rol manda; lo que venga en la URL se ignora
     else:
-        zona = request.GET.get("zona") if request.GET.get("zona") in zonas else None
+        pais = request.GET.get("pais") if request.GET.get("pais") in paises else None
     planes = m.planes()
     plan_id = _entero(request.GET.get("plan"), {p["plan_id"] for p in planes})
     anio = _entero(request.GET.get("anio"), set(m.anios()))
-    filtro = m.Filtro(zona=zona, plan_id=plan_id, anio=anio, ver_mrr=perfil.ver_mrr)
+    filtro = m.Filtro(pais=pais, plan_id=plan_id, anio=anio, ver_mrr=perfil.ver_mrr)
     controles = {
-        "zonas": zonas, "planes": planes, "anios": m.anios(),
-        "zona": zona, "plan_id": plan_id, "anio": anio,
-        "zona_fija": perfil.clave == "lider",
+        "paises": paises, "planes": planes, "anios": m.anios(),
+        "pais": pais, "plan_id": plan_id, "anio": anio,
+        "pais_fijo": perfil.clave == "lider",
     }
     return filtro, controles
 
@@ -104,35 +104,54 @@ def tablero(request):
     ctx = _contexto(request, "tablero")
     f, controles = filtro_de(request)
     k = m.indicadores(f)
-    ctx.update({"controles": controles, "k": k})
-    if not k:
+    guia = m.indicadores_guia(f)
+    ctx.update({"controles": controles, "k": k, "guia": guia})
+    if not k and not guia:
         return render(request, "tablero.html", ctx)
 
     tarjetas = []
-    if f.ver_mrr:
-        variacion = k["variacion"]
-        tarjetas += [
-            {"nombre": f"MRR {k['mes']}", "valor": dinero(k["mrr"]),
-             "detalle": f"{pct(variacion, signo=True)} vs {k['mes_previo']}" if variacion is not None else "primer mes",
-             "tono": "mal" if (variacion or 0) < 0 else "bien"},
-            {"nombre": "Ingreso por cuenta de pago", "valor": dinero(k["arpa"]),
-             "detalle": f"{m.n(k['cuentas_pago'])} cuentas de pago · sin Free", "tono": ""},
-        ]
-    tarjetas += [
-        {"nombre": "Cuentas activas", "valor": m.n(k["cuentas"]),
-         "detalle": f"{k['mes']} · máximo {m.n(k['cuentas_max']['cuentas'])} ({k['cuentas_max']['etiqueta']})",
-         "tono": "mal" if k["cuentas"] < k["cuentas_max"]["cuentas"] else ""},
-        {"nombre": "Cancelación mensual", "valor": pct(k["cancelacion"], 2),
-         "detalle": f"promedio {k['cancelacion_desde']} a {k['mes']}", "tono": ""},
-        {"nombre": "Uso por cuenta activa", "valor": m.dec(k["uso_por_cuenta"] or 0),
-         "detalle": f"eventos en {k['mes']} ({m.n(k['eventos_mes'])} en total)", "tono": ""},
-        {"nombre": "Sobre el límite de su plan", "valor": pct(k["sobre_limite"]),
-         "detalle": (f"{m.n(k['sobre_limite_cuentas'])} cuenta{'s' if k['sobre_limite_cuentas'] != 1 else ''} "
-                     f"candidata{'s' if k['sobre_limite_cuentas'] != 1 else ''} a subir de plan"), "tono": ""},
-    ]
+    if guia:
+        if f.ver_mrr:
+            tarjetas.append({
+                "nombre": "MRR dic-2025",
+                "valor": dinero(guia["mrr"]),
+                "detalle": f"Suma {guia['mes_referencia']}",
+                "tono": "",
+            })
+        tarjetas.append({
+            "nombre": "Cuentas activas dic-2025",
+            "valor": m.n(guia["cuentas"]),
+            "detalle": f"Cuentas {guia['mes_referencia']}",
+            "tono": "",
+        })
+        if f.ver_mrr:
+            tarjetas.append({
+                "nombre": "ARPA dic-2025",
+                "valor": dinero(guia["arpa"]),
+                "detalle": f"{m.n(guia['cuentas_pago'])} cuentas de pago · sin Free",
+                "tono": "",
+            })
+        tarjetas.append({
+            "nombre": "Cancelación mensual 2025",
+            "valor": pct(guia["cancelacion"], 2),
+            "detalle": f"Promedio año {guia['anio_referencia']}",
+            "tono": "",
+        })
+        tarjetas.append({
+            "nombre": "Cuentas pagas dic-2025",
+            "valor": pct(guia["pct_cuentas_pago"], 1),
+            "detalle": f"{m.n(guia['cuentas_pago'])} de {m.n(guia['cuentas'])} cuentas",
+            "tono": "",
+        })
+        tarjetas.append({
+            "nombre": "Uso por cuenta-mes 2025",
+            "valor": m.dec(guia["uso_por_cuenta_mes"], 2),
+            "detalle": f"{m.n(guia['eventos_2025'])} eventos ÷ {m.n(guia['subs_2025'])} suscripciones",
+            "tono": "",
+        })
     ctx["tarjetas"] = tarjetas
 
-    if f.ver_mrr:
+    if f.ver_mrr and k:
         serie = m.serie_mensual(f)
         ctx["tendencia"] = {
             "titulo": "MRR por mes",
@@ -143,9 +162,9 @@ def tablero(request):
         free = [p for p in m.por_plan(f) if p["plan__precio_mensual"] == 0]
         ctx["nota_free"] = (f"{free[0]['nombre']}: {m.n(free[0]['cuentas'])} cuentas y $0. No es un error."
                             if free else "")
-        campo, titulo = ("cuenta__industria", "Por industria") if f.zona else ("cuenta__zona", "Por zona")
+        campo, titulo = ("cuenta__industria", "Por industria") if f.pais else ("cuenta__pais", "Por país")
         ctx["por_grupo"] = {"titulo": titulo, "filas": barras(m.mrr_por(f, campo), dinero),
-                            "sub": f"Solo {f.zona}" if f.zona else "País generalizado a zona por privacidad (E3)"}
+                            "sub": f"Solo {f.pais}" if f.pais else "Todas las cuentas por país"}
     else:
         uso = m.uso_mensual(f)
         ctx["tendencia"] = {
@@ -177,7 +196,7 @@ def explorar(request):
         ]
         if f.ver_mrr:
             tarjetas.append({"nombre": "Participación MRR", "valor": pct(elegido["participacion"]),
-                             "detalle": "del total" + (f" de {f.zona}" if f.zona else "")})
+                             "detalle": "del total" + (f" de {f.pais}" if f.pais else "")})
         ordenados = sorted(planes, key=lambda p: -(p["cancelacion"] or 0))
         diferencia = ((ordenados[0]["cancelacion"] or 0) - (ordenados[-1]["cancelacion"] or 0)) * 100
         ctx.update({
@@ -203,13 +222,16 @@ def alertas(request):
     if ultima:
         regla = ultima.bitacora.filter(regla_aplicada__icontains="posterior a la primera").first()
         registro = regla.filas_afectadas if regla else 0
-    lista, uso = m.alertas(f, registro if not f.zona else 0)
-    atipicos = {u["clave"] for u, _ in m.meses_atipicos(uso)}
+    lista, uso = m.alertas(f, registro if not f.pais else 0)
+    atipicos_claves = set()
+    for a in lista:
+        if a.get("tipo") == "atípico" and "claves" in a:
+            atipicos_claves.update(a["claves"])
     ctx.update({
         "controles": controles, "alertas": lista,
         "svg": graficos.columnas([(u["clave"], u["etiqueta"], u["por_dia"]) for u in uso],
-                                 lambda v: f"{m.dec(v)} eventos por día", atipicos, "Eventos de uso por día"),
-        "hay_atipicos": bool(atipicos),
+                                 lambda v: f"{m.dec(v)} eventos por día", atipicos_claves, "Eventos de uso por día"),
+        "hay_atipicos": bool(atipicos_claves),
     })
     return render(request, "alertas.html", ctx)
 
@@ -221,20 +243,43 @@ def metricas(request):
     ctx = _contexto(request, "metricas")
     f, controles = filtro_de(request)
     k = m.indicadores(f) or {}
-    valores = {
-        "mrr": dinero(k.get("mrr")) if f.ver_mrr else None,
-        "variacion": pct(k.get("variacion"), signo=True) if f.ver_mrr else None,
-        "cuentas": m.n(k["cuentas"]) if k else "—",
-        "cancelacion": pct(k.get("cancelacion"), 2),
-        "arpa": dinero(k.get("arpa")) if f.ver_mrr else None,
-        "uso_por_cuenta": m.dec(k["uso_por_cuenta"]) if k.get("uso_por_cuenta") is not None else "—",
-        "sobre_limite": pct(k.get("sobre_limite")),
+    guia = m.indicadores_guia(f) or {}
+
+    valores_guia = {
+        "mrr": dinero(guia.get("mrr")) if f.ver_mrr and guia.get("mrr") is not None else "no visible para su rol",
+        "cuentas": m.n(guia["cuentas"]) if "cuentas" in guia else "—",
+        "arpa": dinero(guia.get("arpa")) if f.ver_mrr and guia.get("arpa") is not None else "no visible para su rol",
+        "cancelacion": pct(guia.get("cancelacion"), 2) if guia.get("cancelacion") is not None else "—",
+        "pct_cuentas_pago": pct(guia.get("pct_cuentas_pago"), 2) if guia.get("pct_cuentas_pago") is not None else "—",
+        "uso_por_cuenta_mes": m.dec(guia.get("uso_por_cuenta_mes"), 2) if guia.get("uso_por_cuenta_mes") is not None else "—",
     }
-    fichas = []
-    for ficha in m.FICHAS:
-        valor = valores.get(ficha["clave"])
-        fichas.append({**ficha, "valor": valor if valor is not None else "no visible para su rol"})
-    ctx.update({"controles": controles, "fichas": fichas, "mes": k.get("mes")})
+    fichas_guia = []
+    for fg in m.FICHAS_GUIA:
+        if not f.ver_mrr and fg["clave"] in ("mrr", "arpa"):
+            continue
+        v = valores_guia.get(fg["clave"], "—")
+        fichas_guia.append({**fg, "valor": v})
+
+    valores_comp = {
+        "mrr_mes": dinero(k.get("mrr")) if f.ver_mrr and k.get("mrr") is not None else "no visible para su rol",
+        "variacion": pct(k.get("variacion"), signo=True) if f.ver_mrr and k.get("variacion") is not None else "—",
+        "cancelacion_ult12": pct(k.get("cancelacion"), 2) if k.get("cancelacion") is not None else "—",
+        "sobre_limite": pct(k.get("sobre_limite")) if k.get("sobre_limite") is not None else "—",
+    }
+    fichas_comp = []
+    for fc in m.FICHAS_COMPLEMENTARIAS:
+        if not f.ver_mrr and fc["clave"] in ("mrr_mes", "variacion"):
+            continue
+        v = valores_comp.get(fc["clave"], "—")
+        fichas_comp.append({**fc, "valor": v})
+
+    ctx.update({
+        "controles": controles,
+        "fichas_guia": fichas_guia,
+        "fichas_complementarias": fichas_comp,
+        "fichas": fichas_guia + fichas_comp,
+        "mes": k.get("mes"),
+    })
     return render(request, "metricas.html", ctx)
 
 
@@ -248,13 +293,18 @@ def accesos(request):
               + (" + Carga, Calidad, Privacidad y Modelo" if "carga" in r["pantallas"] else "")}
              for c, r in ROLES.items()]
     prueba = []
-    total = 0.0
-    for zona in m.zonas():
-        valor = sum(x["valor"] for x in m.mrr_por(m.Filtro(zona=zona), "cuenta__zona"))
-        total += valor
-        prueba.append({"rol": f"Líder · {zona}", "valor": dinero(valor)})
-    prueba.append({"rol": "Dirección (todas las zonas)", "valor": dinero(total), "total": True})
-    prueba.append({"rol": "Soporte", "valor": "no se consulta"})
+    total_dic = 0.0
+    for pais in m.paises():
+        guia_p = m.indicadores_guia(m.Filtro(pais=pais))
+        val = guia_p["mrr"] if (guia_p and guia_p["mrr"] is not None) else 0.0
+        total_dic += val
+        prueba.append({"rol": f"Líder · {pais}", "valor": dinero(val), "mrr_num": val})
+    guia_dir = m.indicadores_guia(m.Filtro())
+    mrr_dir = guia_dir["mrr"] if (guia_dir and guia_dir["mrr"] is not None) else total_dic
+    prueba.append({"rol": "Dirección (todos los países)", "valor": dinero(mrr_dir), "total": True, "mrr_num": mrr_dir})
+    prueba.append({"rol": "Soporte", "valor": "no se consulta (oculto)"})
+
+    suma_coincide = abs(total_dic - mrr_dir) < 0.01
 
     grupos = Group.objects.filter(Q(name__in=[GRUPO_DIRECCION, GRUPO_SOPORTE]) | Q(name__startswith=PREFIJO_LIDER))
     usuarios = []
@@ -263,7 +313,11 @@ def accesos(request):
             usuarios.append({"usuario": u.username, "grupo": g.name, "activo": u.is_active})
     registro = [{"hora": _local(r.fecha_hora), **{k: getattr(r, k) for k in ("usuario", "rol", "zona", "pantalla")}}
                 for r in RegistroAcceso.objects.all()[:20]]
-    ctx.update({"roles": roles, "prueba": prueba, "usuarios": usuarios, "registro": registro})
+    ctx.update({
+        "roles": roles, "prueba": prueba, "usuarios": usuarios, "registro": registro,
+        "total_dic_fmt": dinero(mrr_dir), "suma_paises_fmt": dinero(total_dic),
+        "suma_coincide": suma_coincide,
+    })
     return render(request, "accesos.html", ctx)
 
 

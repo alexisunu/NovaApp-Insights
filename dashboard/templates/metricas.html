@@ -14,15 +14,42 @@
 {% include "_filtros.html" %}
 
 <section class="tarjeta">
-  <h2>Indicadores del sistema</h2>
-  <p class="sub">Se calculan en cada consulta sobre la base{% if mes %}; valores al último mes con datos ({{ mes }}){% endif %}, con el alcance de su rol</p>
+  <h2>Indicadores de la guía</h2>
+  <p class="sub">Los seis indicadores de referencia del hito (diciembre 2025 / acumulado 2025), con el alcance de su rol</p>
   <div class="tabla-envoltura">
     <table class="tabla metricas">
       <thead>
         <tr><th>Indicador</th><th>Fórmula</th><th>Qué mide</th><th>Qué decisión apoya</th><th class="num">Valor ahora</th></tr>
       </thead>
       <tbody>
-        {% for f in fichas %}
+        {% for f in fichas_guia %}
+          <tr>
+            <td><strong>{{ f.nombre }}</strong><small class="etiqueta {% if 'Filtro' in f.tipo or 'periodo' in f.tipo %}ambar{% else %}neutro{% endif %}">{{ f.tipo }}</small></td>
+            <td class="mono formula">{{ f.formula }}</td>
+            <td>{{ f.mide }}</td>
+            <td>{{ f.decision }}</td>
+            <td class="num">{{ f.valor }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="vacio">No hay datos suficientes para calcular los indicadores.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="pie">Fórmulas exactas según la especificación del Hito 2 en <code>dashboard/metricas.py</code>.</p>
+</section>
+
+{% if fichas_complementarias %}
+<section class="tarjeta">
+  <h2>Complementarios</h2>
+  <p class="sub">Indicadores adicionales de tendencia y monitoreo</p>
+  <div class="tabla-envoltura">
+    <table class="tabla metricas">
+      <thead>
+        <tr><th>Indicador</th><th>Fórmula</th><th>Qué mide</th><th>Qué decisión apoya</th><th class="num">Valor ahora</th></tr>
+      </thead>
+      <tbody>
+        {% for f in fichas_complementarias %}
           <tr>
             <td><strong>{{ f.nombre }}</strong><small class="etiqueta {% if 'Filtro' in f.tipo or 'periodo' in f.tipo %}ambar{% else %}neutro{% endif %}">{{ f.tipo }}</small></td>
             <td class="mono formula">{{ f.formula }}</td>
@@ -34,6 +61,6 @@
       </tbody>
     </table>
   </div>
-  <p class="pie">Las fórmulas están en <code>dashboard/metricas.py</code>; esta tabla se arma con esas mismas definiciones.</p>
 </section>
+{% endif %}
 {% endblock %}
