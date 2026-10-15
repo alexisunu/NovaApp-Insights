@@ -2,13 +2,14 @@ import pandas as pd
 from django.core.management import call_command
 from django.test import TestCase
 from .loader import cargar
-from .models import BitacoraCambios, FactSuscripciones, StgRechazos
+from .models import BitacoraCambios, DimCuenta, FactSuscripciones, StgRechazos
 
 
 def datos_falsos():
-    cuenta = lambda i, h, z: {
+    cuenta = lambda i, h, z, p="Colombia": {
         "cuenta_id": i,
         "nit_hash": h * 64,
+        "pais": p,
         "zona": z,
         "industria": "Retail",
         "canal_adquisicion": "Web",
@@ -33,9 +34,9 @@ def datos_falsos():
             {"plan_id": 2, "nombre_plan": "Pro", "precio_mensual": 49.9, "limite_usuarios": 20},
         ]),
         "cuenta": pd.DataFrame([
-            cuenta(1, "a", "Norte"),
-            cuenta(2, "b", "Sur"),
-            cuenta(3, "c", "Sur"),
+            cuenta(1, "a", "Norte", "Colombia"),
+            cuenta(2, "b", "Sur", "Chile"),
+            cuenta(3, "c", "Sur", "Argentina"),
         ]),
         "suscripciones": pd.DataFrame([
             susc(1, 1, 0.0, 2, False),
@@ -156,3 +157,39 @@ class CargaIdempotenteTest(TestCase):
         d["uso"] = d["uso"].drop(columns=["feature"])
         with self.assertRaises(ValueError):
             cargar(d)
+
+    def test_pais_guardado_y_idempotencia(self):
+        # (a) tras cargar, DimCuenta.pais guarda el valor recibido
+        e1 = self.correr()
+        c1 = DimCuenta.objects.get(cuenta_id=1)
+        self.assertEqual(c1.pais, "Colombia")
+        c2 = DimCuenta.objects.get(cuenta_id=2)
+        self.assertEqual(c2.pais, "Chile")
+        c3 = DimCuenta.objects.get(cuenta_id=3)
+        self.assertEqual(c3.pais, "Argentina")
+
+        # (b) una segunda carga idéntica da 0 insertadas y 0 actualizadas
+        e2 = self.correr()
+        self.assertEqual(e2.filas_insertadas, 0)
+        self.assertEqual(e2.filas_actualizadas, 0)
+        self.assertEqual(e2.filas_sin_cambio, 9)
+
+    def test_cambio_pais_actualiza_cuenta(self):
+        # (c) si cambia el pais de una cuenta, esa cuenta cuenta como 1 actualizada y las demás como sin cambio
+        self.correr()
+        d = datos_falsos()
+        d["cuenta"].loc[d["cuenta"]["cuenta_id"] == 1, "pais"] = "México"
+        e = self.correr(d)
+        self.assertEqual(e.filas_insertadas, 0)
+        self.assertEqual(e.filas_actualizadas, 1)
+        self.assertEqual(DimCuenta.objects.get(cuenta_id=1).pais, "México")
+        self.assertEqual(e.filas_por_tabla["dim_cuenta"]["actualizadas"], 1)
+        self.assertEqual(e.filas_por_tabla["dim_cuenta"]["sin_cambio"], 2)
+
+    def test_error_falta_columna_pais(self):
+        # (d) si falta la columna pais, hay un error claro
+        d = datos_falsos()
+        d["cuenta"] = d["cuenta"].drop(columns=["pais"])
+        with self.assertRaises(ValueError) as ctx:
+            cargar(d)
+        self.assertIn("pais", str(ctx.exception))

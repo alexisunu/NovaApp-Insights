@@ -30,10 +30,10 @@ erDiagram
     DIM_CUENTA {
         int cuenta_id PK
         string nit_hash
+        string pais
         string zona
         string industria
         string canal_adquisicion
-        int plan_inicial_id FK
         bool fecha_registro_inconsistente
     }
     FACT_SUSCRIPCIONES {
