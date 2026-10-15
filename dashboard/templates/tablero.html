@@ -19,13 +19,13 @@
 
 {% include "_filtros.html" %}
 
-{% if not k and not guia %}
+{% if not tarjetas and not k %}
   <section class="tarjeta"><p class="vacio">No hay datos para mostrar todavía. Ejecute la carga en "Carga de datos".</p></section>
 {% else %}
 
 <div class="indicadores{% if tarjetas|length > 4 %} tres{% endif %}">
   {% for t in tarjetas %}
-    <div class="indicador">
+    <div class="indicador{% if t.sin_datos %} sin-datos{% endif %}">
       <div class="indicador-nombre">{{ t.nombre }}</div>
       <div class="indicador-valor">{{ t.valor }}</div>
       <div class="indicador-detalle {{ t.tono }}">{{ t.detalle }}</div>

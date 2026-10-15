@@ -183,61 +183,113 @@ def anios():
 
 def indicadores_guia(f):
     """
-    Calcula los seis indicadores de la guía para el periodo de referencia (dic-2025 y año 2025).
-    Respeta el Filtro f (país del líder, ver_mrr para soporte).
-    Si no hay datos en el periodo, devuelve None.
-
-    1. MRR dic-2025: suma del mrr de las suscripciones de dic-2025.
-    2. Cuentas activas dic-2025: cuentas distintas con suscripción en dic-2025.
-    3. ARPA dic-2025: MRR de dic-2025 ÷ cuentas distintas con plan pago (precio_mensual > 0) en dic-2025.
-    4. Cancelación mensual 2025 (%): suscripciones de 2025 con churn verdadero ÷ suscripciones de 2025.
-    5. Cuentas pagas dic-2025 (%): cuentas con plan pago ÷ cuentas activas, en dic-2025.
-    6. Uso por cuenta-mes 2025: eventos de uso de 2025 ÷ suscripciones de 2025.
+    Calcula los seis indicadores de la guía.
+    - Sin filtro de año: usa ANIO_REFERENCIA (2025) y MES_REFERENCIA (dic-2025).
+    - Con año Y: anio = Y y mes de referencia = diciembre de Y (o el último disponible).
+    Aplica el filtro de país (el país del Líder manda) y el de plan a los seis.
     """
-    subs_dic = f.suscripciones().filter(fecha_id=MES_REFERENCIA)
-    subs_anio = f.suscripciones().filter(fecha__anio=ANIO_REFERENCIA)
-    usos_anio = f.usos().filter(fecha__anio=ANIO_REFERENCIA)
+    if not FactSuscripciones.objects.exists():
+        return None
 
-    agg_dic = subs_dic.aggregate(
+    anio = f.anio or ANIO_REFERENCIA
+    if f.anio is None:
+        mes_ref = MES_REFERENCIA
+        mes_txt = "dic-2025"
+        es_ultimo_disponible = False
+        ultimo_mes_etiqueta = None
+    else:
+        dic_id = anio * 10000 + 1201
+        if FactSuscripciones.objects.filter(fecha__anio=anio, fecha__mes=12).exists():
+            mes_ref = dic_id
+            mes_txt = f"dic-{anio}"
+            es_ultimo_disponible = False
+            ultimo_mes_etiqueta = None
+        else:
+            meses_anio = FactSuscripciones.objects.filter(fecha__anio=anio).values_list("fecha_id", flat=True).distinct()
+            if meses_anio:
+                mes_ref = max(meses_anio)
+                anio_m, mes_m = divmod(int(mes_ref) // 100, 100)
+                mes_txt = f"{MESES[mes_m - 1]}-{anio_m}"
+                es_ultimo_disponible = True
+                ultimo_mes_etiqueta = etiqueta_mes(mes_ref)
+            else:
+                mes_ref = dic_id
+                mes_txt = f"dic-{anio}"
+                es_ultimo_disponible = False
+                ultimo_mes_etiqueta = None
+
+    # Suscripciones y usos con los filtros de país y plan aplicados
+    subs_mes = f.suscripciones().filter(fecha_id=mes_ref)
+    subs_anio = f.suscripciones().filter(fecha__anio=anio)
+    usos_anio = f.usos().filter(fecha__anio=anio)
+
+    if f.plan_id:
+        cuentas_plan = subs_anio.values_list("cuenta_id", flat=True).distinct()
+        usos_anio = usos_anio.filter(cuenta_id__in=cuentas_plan)
+
+    es_plan_free = False
+    if f.plan_id:
+        plan_obj = DimPlan.objects.filter(plan_id=f.plan_id).first()
+        if plan_obj and plan_obj.precio_mensual == 0:
+            es_plan_free = True
+
+    agg_mes = subs_mes.aggregate(
         mrr_total=Sum("mrr"),
         cuentas=Count("cuenta_id", distinct=True),
         mrr_pago=Sum("mrr", filter=PAGO),
         cuentas_pago=Count("cuenta_id", filter=PAGO, distinct=True),
     )
+    tiene_datos_mes = subs_mes.exists()
+    cuentas_activas = agg_mes["cuentas"] if tiene_datos_mes else None
+    cuentas_pago = agg_mes["cuentas_pago"] if tiene_datos_mes else 0
+    mrr_mes = float(agg_mes["mrr_total"] or 0) if (tiene_datos_mes and f.ver_mrr) else None
+
+    if es_plan_free:
+        arpa_mes = None
+    elif f.ver_mrr and tiene_datos_mes and cuentas_pago > 0:
+        arpa_mes = mrr_mes / cuentas_pago
+    else:
+        arpa_mes = None
+
+    pct_pago_mes = (cuentas_pago / cuentas_activas) if (tiene_datos_mes and cuentas_activas and cuentas_activas > 0) else None
+
     agg_anio = subs_anio.aggregate(
         total_filas=Count("sub_id"),
         churn_filas=Count("sub_id", filter=Q(churn=True)),
     )
-    total_eventos_anio = usos_anio.count()
-
-    cuentas_activas = agg_dic["cuentas"] or 0
     total_subs_anio = agg_anio["total_filas"] or 0
+    total_eventos_anio = usos_anio.count()
+    tiene_datos_anio = total_subs_anio > 0
 
-    if cuentas_activas == 0 and total_subs_anio == 0:
-        return None
-
-    cuentas_pago = agg_dic["cuentas_pago"] or 0
-    mrr_dic = float(agg_dic["mrr_total"] or 0) if f.ver_mrr else None
-    arpa_dic = (mrr_dic / cuentas_pago) if (f.ver_mrr and cuentas_pago > 0) else None
-
-    churn_subs_anio = agg_anio["churn_filas"] or 0
-    cancelacion_2025 = (churn_subs_anio / total_subs_anio) if total_subs_anio > 0 else None
-
-    pct_pago_dic = (cuentas_pago / cuentas_activas) if cuentas_activas > 0 else None
-    uso_por_cuenta_mes = (total_eventos_anio / total_subs_anio) if total_subs_anio > 0 else None
+    if tiene_datos_anio:
+        churn_subs = agg_anio["churn_filas"] or 0
+        cancelacion_anio = churn_subs / total_subs_anio
+        uso_por_cuenta_mes = total_eventos_anio / total_subs_anio
+    else:
+        cancelacion_anio = None
+        uso_por_cuenta_mes = None
 
     return {
-        "mes_referencia": "dic-2025",
-        "anio_referencia": ANIO_REFERENCIA,
-        "mrr": mrr_dic,
+        "anio": anio,
+        "anio_referencia": anio,
+        "mes_referencia_id": mes_ref,
+        "mes_referencia": mes_txt,
+        "ultimo_mes_disponible": es_ultimo_disponible,
+        "ultimo_mes_etiqueta": ultimo_mes_etiqueta,
+        "es_plan_free": es_plan_free,
+        "mrr": mrr_mes,
         "cuentas": cuentas_activas,
-        "arpa": arpa_dic,
-        "cancelacion": cancelacion_2025,
+        "arpa": arpa_mes,
+        "cancelacion": cancelacion_anio,
         "cuentas_pago": cuentas_pago,
-        "pct_cuentas_pago": pct_pago_dic,
+        "pct_cuentas_pago": pct_pago_mes,
         "uso_por_cuenta_mes": uso_por_cuenta_mes,
+        "eventos_anio": total_eventos_anio,
+        "subs_anio": total_subs_anio,
         "eventos_2025": total_eventos_anio,
         "subs_2025": total_subs_anio,
+        "tiene_datos_mes": tiene_datos_mes,
+        "tiene_datos_anio": tiene_datos_anio,
     }
 
 

@@ -75,12 +75,23 @@ class Hito2Base(TestCase):
             susc(13, 4, 49.9, 5, False, plan=2, churn=False),
             susc(14, 5, 0.0, 1, False, plan=1, churn=True),
         ]
-        # También dejamos suscripciones de 2022 para pruebas de series históricas
+        # Suscripciones para 2023 (conjunto conocido de dos años distintos):
+        # dic-2023: Chile (Pro 49.9), Perú (Pro 49.9), Perú (Free 0), Colombia (Free 0, churn=True)
+        # jun-2023: Argentina (Pro 49.9, churn=True)
+        # Total subs 2023 = 5; churn = 2 (40%); dic-2023: MRR = 99.8, cuentas = 4, ARPA = 49.9, pagas = 50%
+        subs_2023 = [
+            susc(20, 2, 49.9, 5, False, plan=2, churn=False, fecha=20231201),
+            susc(21, 4, 49.9, 5, False, plan=2, churn=False, fecha=20231201),
+            susc(22, 5, 0.0, 1, False, plan=1, churn=False, fecha=20231201),
+            susc(23, 1, 0.0, 2, False, plan=1, churn=True, fecha=20231201),
+            susc(24, 3, 49.9, 5, False, plan=2, churn=True, fecha=20230601),
+        ]
+        # Suscripciones de 2022 para series históricas
         subs_2022 = [
             susc(1, 1, 0.0, 2, False, plan=1, fecha=20220101),
             susc(2, 2, 49.9, None, True, plan=2, fecha=20220101),
         ]
-        datos["suscripciones"] = pd.DataFrame(subs_2025 + subs_2022)
+        datos["suscripciones"] = pd.DataFrame(subs_2025 + subs_2023 + subs_2022)
 
         # 10 eventos de uso en 2025: 10 eventos / 5 subs en 2025 = 2.0 uso_por_cuenta_mes
         usos_list = []
@@ -89,6 +100,16 @@ class Hito2Base(TestCase):
                 "uso_id": uid,
                 "cuenta_id": 2 if uid % 2 == 0 else 4,
                 "fecha_id": 20251215,
+                "feature": "reportes",
+                "duracion_min": 10.0,
+                "duracion_min_faltante": False,
+            })
+        # 15 eventos de uso en 2023: 15 eventos / 5 subs en 2023 = 3.0 uso_por_cuenta_mes
+        for uid in range(20, 35):
+            usos_list.append({
+                "uso_id": uid,
+                "cuenta_id": 2 if uid % 2 == 0 else 4,
+                "fecha_id": 20231215,
                 "feature": "reportes",
                 "duracion_min": 10.0,
                 "duracion_min_faltante": False,
@@ -298,3 +319,116 @@ class PantallasHito2Test(Hito2Base):
         u = get_user_model().objects.get(username="lider_chile")
         self.assertIn("Líder · Chile", list(u.groups.values_list("name", flat=True)))
         self.assertTrue(self.client.login(username="lider_chile", password="otra-clave-demo"))
+
+    def test_sin_filtro_seis_tarjetas_dan_periodo_referencia(self):
+        self.como(self.direccion)
+        respuesta = self.client.get(reverse("dashboard:tablero"))
+        self.assertEqual(respuesta.status_code, 200)
+        tarjetas = {t["nombre"]: t for t in respuesta.context["tarjetas"]}
+        self.assertEqual(len(respuesta.context["tarjetas"]), 6)
+        self.assertIn("MRR dic-2025", tarjetas)
+        self.assertIn("Cuentas activas dic-2025", tarjetas)
+        self.assertIn("ARPA dic-2025", tarjetas)
+        self.assertIn("Cancelación mensual 2025", tarjetas)
+        self.assertIn("Cuentas pagas dic-2025", tarjetas)
+        self.assertIn("Uso por cuenta-mes 2025", tarjetas)
+
+        self.assertEqual(tarjetas["MRR dic-2025"]["valor"], "$150")
+        self.assertAlmostEqual(respuesta.context["guia"]["mrr"], 149.7, places=2)
+        self.assertEqual(tarjetas["Cuentas activas dic-2025"]["valor"], "5")
+        self.assertEqual(tarjetas["ARPA dic-2025"]["valor"], "$50")
+        self.assertAlmostEqual(respuesta.context["guia"]["arpa"], 49.9, places=2)
+        self.assertEqual(tarjetas["Cancelación mensual 2025"]["valor"], "20,00 %")
+        self.assertEqual(tarjetas["Cuentas pagas dic-2025"]["valor"], "60,0 %")
+        self.assertEqual(tarjetas["Uso por cuenta-mes 2025"]["valor"], "2,00")
+
+    def test_con_anio_seis_tarjetas_valores_calculados_a_mano(self):
+        self.como(self.direccion)
+        respuesta = self.client.get(reverse("dashboard:tablero"), {"anio": 2023})
+        self.assertEqual(respuesta.status_code, 200)
+        tarjetas = {t["nombre"]: t for t in respuesta.context["tarjetas"]}
+        self.assertEqual(len(respuesta.context["tarjetas"]), 6)
+        self.assertIn("MRR dic-2023", tarjetas)
+        self.assertIn("Cuentas activas dic-2023", tarjetas)
+        self.assertIn("ARPA dic-2023", tarjetas)
+        self.assertIn("Cancelación mensual 2023", tarjetas)
+        self.assertIn("Cuentas pagas dic-2023", tarjetas)
+        self.assertIn("Uso por cuenta-mes 2023", tarjetas)
+
+        # Valores calculados a mano para 2023:
+        # dic-2023: MRR = 49.9 (Chile) + 49.9 (Perú) = 99.8 -> dinero(99.8) = "$100"
+        self.assertEqual(tarjetas["MRR dic-2023"]["valor"], "$100")
+        self.assertAlmostEqual(respuesta.context["guia"]["mrr"], 99.8, places=2)
+        # Cuentas activas en dic-2023: 4 (cuentas 1, 2, 4, 5)
+        self.assertEqual(tarjetas["Cuentas activas dic-2023"]["valor"], "4")
+        # ARPA dic-2023: 99.8 / 2 cuentas con plan pago = 49.9 -> dinero(49.9) = "$50"
+        self.assertEqual(tarjetas["ARPA dic-2023"]["valor"], "$50")
+        self.assertAlmostEqual(respuesta.context["guia"]["arpa"], 49.9, places=2)
+        # Cancelación mensual 2023: 2 cancelaciones / 5 suscripciones = 40.0%
+        self.assertEqual(tarjetas["Cancelación mensual 2023"]["valor"], "40,00 %")
+        # Cuentas pagas dic-2023: 2 de pago / 4 activas = 50.0%
+        self.assertEqual(tarjetas["Cuentas pagas dic-2023"]["valor"], "50,0 %")
+        # Uso por cuenta-mes 2023: 15 eventos / 5 suscripciones = 3.00
+        self.assertEqual(tarjetas["Uso por cuenta-mes 2023"]["valor"], "3,00")
+        self.assertIn("15 eventos ÷ 5 suscripciones", tarjetas["Uso por cuenta-mes 2023"]["detalle"])
+
+    def test_con_anio_sin_datos_tarjetas_presentes_con_sin_datos(self):
+        self.como(self.direccion)
+        respuesta = self.client.get(reverse("dashboard:tablero"), {"anio": 2020})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(len(respuesta.context["tarjetas"]), 6)
+        for t in respuesta.context["tarjetas"]:
+            self.assertEqual(t["valor"], "Sin datos")
+            self.assertEqual(t["detalle"], "no hay suscripciones con estos filtros")
+        self.assertContains(respuesta, "MRR dic-2020")
+        self.assertContains(respuesta, "Cuentas activas dic-2020")
+        self.assertContains(respuesta, "ARPA dic-2020")
+        self.assertContains(respuesta, "Cancelación mensual 2020")
+        self.assertContains(respuesta, "Cuentas pagas dic-2020")
+        self.assertContains(respuesta, "Uso por cuenta-mes 2020")
+        self.assertContains(respuesta, "Sin datos")
+
+    def test_con_plan_free_arpa_muestra_guion(self):
+        self.como(self.direccion)
+        respuesta = self.client.get(reverse("dashboard:tablero"), {"plan": 1})
+        self.assertEqual(respuesta.status_code, 200)
+        arpa = next(t for t in respuesta.context["tarjetas"] if "ARPA" in t["nombre"])
+        self.assertEqual(arpa["valor"], "—")
+        self.assertEqual(arpa["detalle"], "El plan Free no tiene ingreso")
+
+    def test_metricas_da_lo_mismo_con_y_sin_anio(self):
+        self.como(self.direccion)
+        r_sin = self.client.get(reverse("dashboard:metricas"))
+        r_con = self.client.get(reverse("dashboard:metricas"), {"anio": 2023})
+        self.assertEqual(r_sin.status_code, 200)
+        self.assertEqual(r_con.status_code, 200)
+        vals_sin = [f["valor"] for f in r_sin.context["fichas_guia"]]
+        vals_con = [f["valor"] for f in r_con.context["fichas_guia"]]
+        self.assertEqual(vals_sin, vals_con)
+        self.assertContains(r_con, "Valor oficial de la guía: dic-2025 / 2025")
+
+    def test_soporte_no_recibe_mrr_ni_arpa_con_ningun_anio(self):
+        self.como(self.soporte)
+        for anio in (None, 2023, 2020):
+            with self.subTest(anio=anio):
+                params = {"anio": anio} if anio else {}
+                resp = self.client.get(reverse("dashboard:tablero"), params)
+                self.assertEqual(resp.status_code, 200)
+                self.assertEqual(len(resp.context["tarjetas"]), 4)
+                nombres = [t["nombre"] for t in resp.context["tarjetas"]]
+                self.assertTrue(all("MRR" not in n and "ARPA" not in n for n in nombres))
+                self.assertNotContains(resp, "MRR por plan")
+
+    def test_lider_sigue_limitado_a_su_pais_con_cualquier_anio(self):
+        self.como(self.lider_chile)
+        for anio in (None, 2023):
+            with self.subTest(anio=anio):
+                params = {"anio": anio, "pais": "Perú"} if anio else {"pais": "Perú"}
+                resp = self.client.get(reverse("dashboard:tablero"), params)
+                self.assertEqual(resp.status_code, 200)
+                self.assertEqual(resp.context["controles"]["pais"], "Chile")
+                cuentas = next(t for t in resp.context["tarjetas"] if "Cuentas activas" in t["nombre"])
+                self.assertEqual(cuentas["valor"], "1")
+                mrr = next(t for t in resp.context["tarjetas"] if "MRR" in t["nombre"])
+                self.assertEqual(mrr["valor"], "$50")
+                self.assertAlmostEqual(resp.context["guia"]["mrr"], 49.9, places=2)

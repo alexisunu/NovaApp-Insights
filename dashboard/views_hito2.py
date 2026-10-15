@@ -54,12 +54,14 @@ def barras(filas, formato, destacado=None, campo="valor"):
 
 # ───────────── filtro desde la URL ─────────────
 
-def _entero(texto, validos):
+def _entero(texto, validos=None):
     try:
         valor = int(texto)
     except (TypeError, ValueError):
         return None
-    return valor if valor in validos else None
+    if validos is not None:
+        return valor if valor in validos else None
+    return valor
 
 
 def filtro_de(request):
@@ -71,7 +73,7 @@ def filtro_de(request):
         pais = request.GET.get("pais") if request.GET.get("pais") in paises else None
     planes = m.planes()
     plan_id = _entero(request.GET.get("plan"), {p["plan_id"] for p in planes})
-    anio = _entero(request.GET.get("anio"), set(m.anios()))
+    anio = _entero(request.GET.get("anio"))
     filtro = m.Filtro(pais=pais, plan_id=plan_id, anio=anio, ver_mrr=perfil.ver_mrr)
     controles = {
         "paises": paises, "planes": planes, "anios": m.anios(),
@@ -111,52 +113,129 @@ def tablero(request):
 
     tarjetas = []
     if guia:
+        mes_txt = guia["mes_referencia"]
+        anio_txt = str(guia["anio"])
+        ult_disp = f" (último mes disponible: {guia['ultimo_mes_etiqueta']})" if guia["ultimo_mes_disponible"] else ""
+
         if f.ver_mrr:
+            if guia["mrr"] is not None:
+                tarjetas.append({
+                    "nombre": f"MRR {mes_txt}",
+                    "valor": dinero(guia["mrr"]),
+                    "detalle": f"Suma {mes_txt}{ult_disp}",
+                    "tono": "",
+                    "sin_datos": False,
+                })
+            else:
+                tarjetas.append({
+                    "nombre": f"MRR {mes_txt}",
+                    "valor": "Sin datos",
+                    "detalle": "no hay suscripciones con estos filtros",
+                    "tono": "tenue",
+                    "sin_datos": True,
+                })
+
+        if guia["cuentas"] is not None:
             tarjetas.append({
-                "nombre": "MRR dic-2025",
-                "valor": dinero(guia["mrr"]),
-                "detalle": f"Suma {guia['mes_referencia']}",
+                "nombre": f"Cuentas activas {mes_txt}",
+                "valor": m.n(guia["cuentas"]),
+                "detalle": f"Cuentas {mes_txt}{ult_disp}",
                 "tono": "",
+                "sin_datos": False,
             })
-        tarjetas.append({
-            "nombre": "Cuentas activas dic-2025",
-            "valor": m.n(guia["cuentas"]),
-            "detalle": f"Cuentas {guia['mes_referencia']}",
-            "tono": "",
-        })
+        else:
+            tarjetas.append({
+                "nombre": f"Cuentas activas {mes_txt}",
+                "valor": "Sin datos",
+                "detalle": "no hay suscripciones con estos filtros",
+                "tono": "tenue",
+                "sin_datos": True,
+            })
+
         if f.ver_mrr:
+            if guia.get("es_plan_free"):
+                tarjetas.append({
+                    "nombre": f"ARPA {mes_txt}",
+                    "valor": "—",
+                    "detalle": "El plan Free no tiene ingreso",
+                    "tono": "tenue",
+                    "sin_datos": True,
+                })
+            elif guia["arpa"] is not None:
+                tarjetas.append({
+                    "nombre": f"ARPA {mes_txt}",
+                    "valor": dinero(guia["arpa"]),
+                    "detalle": f"{m.n(guia['cuentas_pago'])} cuentas de pago · sin Free{ult_disp}",
+                    "tono": "",
+                    "sin_datos": False,
+                })
+            else:
+                tarjetas.append({
+                    "nombre": f"ARPA {mes_txt}",
+                    "valor": "Sin datos",
+                    "detalle": "no hay suscripciones con estos filtros",
+                    "tono": "tenue",
+                    "sin_datos": True,
+                })
+
+        if guia["cancelacion"] is not None:
             tarjetas.append({
-                "nombre": "ARPA dic-2025",
-                "valor": dinero(guia["arpa"]),
-                "detalle": f"{m.n(guia['cuentas_pago'])} cuentas de pago · sin Free",
+                "nombre": f"Cancelación mensual {anio_txt}",
+                "valor": pct(guia["cancelacion"], 2),
+                "detalle": f"Promedio año {anio_txt}",
                 "tono": "",
+                "sin_datos": False,
             })
-        tarjetas.append({
-            "nombre": "Cancelación mensual 2025",
-            "valor": pct(guia["cancelacion"], 2),
-            "detalle": f"Promedio año {guia['anio_referencia']}",
-            "tono": "",
-        })
-        tarjetas.append({
-            "nombre": "Cuentas pagas dic-2025",
-            "valor": pct(guia["pct_cuentas_pago"], 1),
-            "detalle": f"{m.n(guia['cuentas_pago'])} de {m.n(guia['cuentas'])} cuentas",
-            "tono": "",
-        })
-        tarjetas.append({
-            "nombre": "Uso por cuenta-mes 2025",
-            "valor": m.dec(guia["uso_por_cuenta_mes"], 2),
-            "detalle": f"{m.n(guia['eventos_2025'])} eventos ÷ {m.n(guia['subs_2025'])} suscripciones",
-            "tono": "",
-        })
+        else:
+            tarjetas.append({
+                "nombre": f"Cancelación mensual {anio_txt}",
+                "valor": "Sin datos",
+                "detalle": "no hay suscripciones con estos filtros",
+                "tono": "tenue",
+                "sin_datos": True,
+            })
+
+        if guia["pct_cuentas_pago"] is not None:
+            tarjetas.append({
+                "nombre": f"Cuentas pagas {mes_txt}",
+                "valor": pct(guia["pct_cuentas_pago"], 1),
+                "detalle": f"{m.n(guia['cuentas_pago'])} de {m.n(guia['cuentas'])} cuentas{ult_disp}",
+                "tono": "",
+                "sin_datos": False,
+            })
+        else:
+            tarjetas.append({
+                "nombre": f"Cuentas pagas {mes_txt}",
+                "valor": "Sin datos",
+                "detalle": "no hay suscripciones con estos filtros",
+                "tono": "tenue",
+                "sin_datos": True,
+            })
+
+        if guia["uso_por_cuenta_mes"] is not None:
+            tarjetas.append({
+                "nombre": f"Uso por cuenta-mes {anio_txt}",
+                "valor": m.dec(guia["uso_por_cuenta_mes"], 2),
+                "detalle": f"{m.n(guia['eventos_anio'])} eventos ÷ {m.n(guia['subs_anio'])} suscripciones",
+                "tono": "",
+                "sin_datos": False,
+            })
+        else:
+            tarjetas.append({
+                "nombre": f"Uso por cuenta-mes {anio_txt}",
+                "valor": "Sin datos",
+                "detalle": "no hay suscripciones con estos filtros",
+                "tono": "tenue",
+                "sin_datos": True,
+            })
     ctx["tarjetas"] = tarjetas
 
-    if f.ver_mrr and k:
+    if f.ver_mrr:
         serie = m.serie_mensual(f)
         ctx["tendencia"] = {
             "titulo": "MRR por mes",
-            "hallazgo": _hallazgo_mrr(k),
-            "svg": graficos.linea([(s["fecha_id"], s["etiqueta"], s["mrr"]) for s in serie], dinero, "MRR"),
+            "hallazgo": _hallazgo_mrr(k) if k else "Sin datos en el periodo.",
+            "svg": graficos.linea([(s["fecha_id"], s["etiqueta"], s["mrr"]) for s in serie], dinero, "MRR") if serie else "",
         }
         ctx["por_plan"] = barras(m.mrr_por(f, "plan__nombre_plan"), dinero)
         free = [p for p in m.por_plan(f) if p["plan__precio_mensual"] == 0]
@@ -170,7 +249,7 @@ def tablero(request):
         ctx["tendencia"] = {
             "titulo": "Eventos de uso por mes",
             "hallazgo": "Sin MRR: este rol solo ve el uso del producto.",
-            "svg": graficos.columnas([(u["clave"], u["etiqueta"], u["eventos"]) for u in uso], m.n, (), "Eventos de uso"),
+            "svg": graficos.columnas([(u["clave"], u["etiqueta"], u["eventos"]) for u in uso], m.n, (), "Eventos de uso") if uso else "",
         }
     ctx["por_funcion"] = barras(m.uso_por_funcion(f), m.n)
     return render(request, "tablero.html", ctx)
@@ -243,11 +322,14 @@ def metricas(request):
     ctx = _contexto(request, "metricas")
     f, controles = filtro_de(request)
     k = m.indicadores(f) or {}
-    guia = m.indicadores_guia(f) or {}
+
+    # Los seis indicadores de la guía NO siguen el filtro de año: siempre usan dic-2025 y año 2025
+    f_guia = m.Filtro(pais=f.pais, plan_id=f.plan_id, anio=None, ver_mrr=f.ver_mrr)
+    guia = m.indicadores_guia(f_guia) or {}
 
     valores_guia = {
         "mrr": dinero(guia.get("mrr")) if f.ver_mrr and guia.get("mrr") is not None else "no visible para su rol",
-        "cuentas": m.n(guia["cuentas"]) if "cuentas" in guia else "—",
+        "cuentas": m.n(guia["cuentas"]) if ("cuentas" in guia and guia["cuentas"] is not None) else "—",
         "arpa": dinero(guia.get("arpa")) if f.ver_mrr and guia.get("arpa") is not None else "no visible para su rol",
         "cancelacion": pct(guia.get("cancelacion"), 2) if guia.get("cancelacion") is not None else "—",
         "pct_cuentas_pago": pct(guia.get("pct_cuentas_pago"), 2) if guia.get("pct_cuentas_pago") is not None else "—",
