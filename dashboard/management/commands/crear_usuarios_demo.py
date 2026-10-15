@@ -15,9 +15,11 @@ from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 
 from dashboard.acceso import GRUPO_DIRECCION, GRUPO_SOPORTE, PREFIJO_LIDER
-from dashboard.metricas import zonas
+from dashboard.metricas import paises
 
-ZONAS_ETL = ["Andina", "Cono Sur", "España", "México"]
+PAISES_CANONICOS = [
+    "Argentina", "Chile", "Colombia", "Ecuador", "España", "México", "Perú", "Uruguay",
+]
 
 
 def _slug(texto):
@@ -26,7 +28,7 @@ def _slug(texto):
 
 
 class Command(BaseCommand):
-    help = "Crea los grupos Dirección, Soporte y Líder · <zona>, con un usuario de prueba para cada uno."
+    help = "Crea los grupos Dirección, Soporte y Líder · <país>, con un usuario de prueba para cada uno."
 
     def add_arguments(self, parser):
         parser.add_argument("--clave", required=True, help="Contraseña para todos los usuarios de demostración")
@@ -37,9 +39,9 @@ class Command(BaseCommand):
             raise CommandError("Use una clave de al menos 8 caracteres.")
 
         Usuario = get_user_model()
-        lista_zonas = zonas() or ZONAS_ETL
+        lista_paises = paises() or PAISES_CANONICOS
         cuentas = [("direccion", GRUPO_DIRECCION), ("soporte", GRUPO_SOPORTE)]
-        cuentas += [(f"lider_{_slug(z)}", f"{PREFIJO_LIDER}{z}") for z in lista_zonas]
+        cuentas += [(f"lider_{_slug(p)}", f"{PREFIJO_LIDER}{p}") for p in lista_paises]
 
         for usuario, nombre_grupo in cuentas:
             grupo, _ = Group.objects.get_or_create(name=nombre_grupo)

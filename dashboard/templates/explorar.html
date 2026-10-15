@@ -21,7 +21,7 @@
   <p class="sub">Elija un plan</p>
   <nav class="segmentado" aria-label="Plan">
     {% for p in planes_datos %}
-      <a href="?plan={{ p.plan_id }}{% if controles.zona and not controles.zona_fija %}&zona={{ controles.zona|urlencode }}{% endif %}{% if controles.anio %}&anio={{ controles.anio }}{% endif %}"
+      <a href="?plan={{ p.plan_id }}{% if controles.pais and not controles.pais_fijo %}&pais={{ controles.pais|urlencode }}{% endif %}{% if controles.anio %}&anio={{ controles.anio }}{% endif %}"
          class="{% if p.plan_id == elegido.plan_id %}activo{% endif %}"{% if p.plan_id == elegido.plan_id %} aria-current="true"{% endif %}>{{ p.nombre }}</a>
     {% endfor %}
   </nav>
