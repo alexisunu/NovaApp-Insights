@@ -25,7 +25,7 @@ REQUERIDAS = {
     "plan": ["plan_id", "nombre_plan", "precio_mensual", "limite_usuarios"],
     "tiempo": ["fecha_id", "fecha"],
     "cuenta": [
-        "cuenta_id", "nit_hash", "zona", "industria",
+        "cuenta_id", "nit_hash", "pais", "zona", "industria",
         "canal_adquisicion", "fecha_registro_inconsistente"
     ],
     "suscripciones": [
