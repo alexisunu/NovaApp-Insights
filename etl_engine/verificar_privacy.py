@@ -47,15 +47,23 @@ def verificar_privacy():
     filas = len(df_seguro_1)
     agregar_resultado('Filas', 5000, filas, filas == 5000)
 
-    # 2. Columnas en orden exacto
-    esperado_orden = ['cuenta_id', 'nit_hash', 'zona', 'industria', 'canal_adquisicion', 'fecha_registro_inconsistente']
+    # 2. Columnas en orden exacto (7 columnas con pais incluido)
+    esperado_orden = ['cuenta_id', 'nit_hash', 'pais', 'zona', 'industria', 'canal_adquisicion', 'fecha_registro_inconsistente']
     obtenido_orden = list(df_seguro_1.columns)
     agregar_resultado('Columnas exactas y en orden', str(esperado_orden), str(obtenido_orden), esperado_orden == obtenido_orden)
 
-    # 3. Sin columnas de datos personales
-    pii = {'nombre_cuenta', 'contacto_admin', 'email_admin', 'nit', 'pais', 'fecha_registro', 'plan_inicial_id'}
+    # 3. Sin columnas de datos personales (pais ya no es prohibida)
+    pii = {'nombre_cuenta', 'contacto_admin', 'email_admin', 'nit', 'fecha_registro', 'plan_inicial_id'}
     interseccion = set(obtenido_orden).intersection(pii)
     agregar_resultado('Sin columnas PII', '0', str(len(interseccion)), len(interseccion) == 0)
+
+    # 3b. Comprobar que pais tiene exactamente los 8 valores canónicos y suma 5000
+    paises_canonicos = {'Argentina', 'Chile', 'Colombia', 'Ecuador', 'España', 'México', 'Perú', 'Uruguay'}
+    paises_obtenidos = set(df_seguro_1['pais'].dropna().unique()) if 'pais' in df_seguro_1.columns else set()
+    agregar_resultado('Pais tiene 8 valores canónicos', str(sorted(list(paises_canonicos))), str(sorted(list(paises_obtenidos))), paises_obtenidos == paises_canonicos)
+
+    suma_cuentas_pais = int(df_seguro_1['pais'].value_counts().sum()) if 'pais' in df_seguro_1.columns else 0
+    agregar_resultado('Suma cuentas por país == 5000', 5000, suma_cuentas_pais, suma_cuentas_pais == 5000)
 
     # 4. Valores textuales de industria y canal_adquisicion
     for col in ['industria', 'canal_adquisicion']:
@@ -144,6 +152,38 @@ def verificar_privacy():
     print(f"Resumen: {aprobados} aprobados, {fallidos} fallidos")
     print("="*40)
 
+    # Métricas adicionales al final de la ejecución
+    print("\n" + "="*50)
+    print("DISTRIBUCIÓN DE CUENTAS POR PAÍS")
+    print("="*50)
+    print(f"{'País':<20} | {'Cuentas':<15}")
+    print("-" * 38)
+    conteo_paises = df_seguro_1['pais'].value_counts().sort_index()
+    for pais, cant in conteo_paises.items():
+        print(f"{pais:<20} | {cant:<15}")
+    print("-" * 38)
+    print(f"{'Total':<20} | {int(conteo_paises.sum()):<15}")
+
+    cuasi_finales = ['pais', 'industria', 'canal_adquisicion']
+    from etl_engine.privacy import normalizar_texto
+    df_temp_k = df_seguro_1.copy()
+    for col in cuasi_finales:
+        df_temp_k[col] = normalizar_texto(df_temp_k[col])
+    grupos_k = df_temp_k.groupby(cuasi_finales, dropna=False).size()
+    num_combinaciones = len(grupos_k)
+    grupos_5_9 = int(((grupos_k >= 5) & (grupos_k <= 9)).sum())
+
+    print("\n" + "="*50)
+    print("MÉTRICAS DE PRIVACIDAD Y K-ANONIMATO (FINAL)")
+    print("="*50)
+    print(f"{'Métrica':<35} | {'Valor':<20}")
+    print("-" * 58)
+    print(f"{'k_despues':<35} | {reporte['k_despues']:<20}")
+    print(f"{'Porcentaje de riesgo (%)':<35} | {reporte['pct_cuentas_riesgo_despues']:.2f}%")
+    print(f"{'Número de combinaciones':<35} | {num_combinaciones:<20}")
+    print(f"{'Grupos entre 5 y 9 cuentas':<35} | {grupos_5_9:<20}")
+    print("="*58)
+
     if fallidos > 0:
         sys.exit(1)
     else:
@@ -151,3 +191,4 @@ def verificar_privacy():
 
 if __name__ == '__main__':
     verificar_privacy()
+
